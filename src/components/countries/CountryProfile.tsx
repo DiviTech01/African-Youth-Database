@@ -361,7 +361,7 @@ const CountryProfile = ({ country }: CountryProfileProps) => {
                   <StatCard
                     label="Total Youth Population"
                     value={`${latestPop}M`}
-                    sub="Ages 15-24"
+                    sub="Ages 15-35"
                     delay={0}
                   />
                   <StatCard
@@ -469,16 +469,16 @@ const CountryProfile = ({ country }: CountryProfileProps) => {
                 <h3 className="text-xl font-bold mb-4">Country Snapshot</h3>
                 <p className="text-muted-foreground mb-6">
                   {country} presents a dynamic youth landscape with a population of {latestPop}M young
-                  people aged 15-24. The country has experienced steady growth in youth education attainment
+                  people aged 15-35. The country has experienced steady growth in youth education attainment
                   and rising digital entrepreneurship, while challenges persist in formal employment and
                   healthcare access across rural regions.
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <StatCard label="Youth Population" value={`${latestPop}M`} sub="Ages 15-24" delay={0} />
+                  <StatCard label="Youth Population" value={`${latestPop}M`} sub="Ages 15-35" delay={0} />
                   <StatCard
                     label="Literacy Rate"
                     value={`${data.educationData[data.educationData.length - 1].literacy}%`}
-                    sub="Youth 15-24"
+                    sub="Youth 15-35"
                     delay={0.1}
                   />
                   <StatCard
@@ -1008,8 +1008,8 @@ const CountryProfile = ({ country }: CountryProfileProps) => {
                   <StatCard label="Digital Literacy" value="38.2%" sub="Continental avg: 31.7%" delay={0.05} />
                   <StatCard label="Youth Poverty Rate" value="34.6%" sub="Target: <20% by 2030" delay={0.1} />
                   <StatCard label="STEM Enrollment" value="14.3%" sub="+2.1pp from 2020" delay={0.15} />
-                  <StatCard label="Youth Civic Participation" value="27.8%" sub="Voter turnout 15-24" delay={0.2} />
-                  <StatCard label="Internet Penetration" value="52.4%" sub="Youth 15-24" delay={0.25} />
+                  <StatCard label="Youth Civic Participation" value="27.8%" sub="Voter turnout 15-35" delay={0.2} />
+                  <StatCard label="Internet Penetration" value="52.4%" sub="Youth 15-35" delay={0.25} />
                 </div>
               </CardContent>
             </Card>

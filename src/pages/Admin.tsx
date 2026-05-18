@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   Shield, Users, Globe, Database, Activity, Search, ArrowRight,
-  Upload, Trash2, FileText, CheckCircle, XCircle, Clock, UserCheck, Wrench,
+  Upload, Trash2, FileText, CheckCircle, XCircle, Clock, UserCheck, Wrench, Mail,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -164,6 +164,7 @@ const Admin = () => {
             {[
               { to: '/admin/cms', icon: FileText, accent: '#D4A017', label: 'Content Manager', hint: 'Edit copy, labels, and CMS content site-wide.' },
               { to: '/admin/reports', icon: FileText, accent: '#A855F7', label: 'Reports & Files', hint: `Upload PDFs and briefs. ${adminReportsCount} on file.` },
+              { to: '/admin/newsletter', icon: Mail, accent: '#3B82F6', label: 'Newsletter & Briefings', hint: 'Review and approve monthly youth-data briefings.' },
               { to: '/dashboard/data-upload', icon: Upload, accent: '#22C55E', label: 'Upload Data', hint: 'Bulk-import indicators, youth-index, and policy records.' },
             ].map(({ to, icon: Icon, accent, label, hint }) => (
               <Link
@@ -336,7 +337,15 @@ const Admin = () => {
 
 function PendingExperts() {
   const { toast } = useToast();
+  const { getToken } = useAuth();
   const qc = useQueryClient();
+  const authHeaders = () => {
+    const token = getToken();
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
   const [rejectDialog, setRejectDialog] = useState<{ id: string; name: string } | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
 
@@ -360,7 +369,7 @@ function PendingExperts() {
     try {
       await fetch(`${apiBase}/experts/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ status: 'APPROVED', verified: true }),
       });
       toast({ title: 'Expert approved', description: 'The expert has been notified.' });
@@ -375,7 +384,7 @@ function PendingExperts() {
     try {
       await fetch(`${apiBase}/experts/${rejectDialog.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ status: 'REJECTED', rejectionReason }),
       });
       toast({ title: 'Expert rejected', description: 'The expert has been notified.' });

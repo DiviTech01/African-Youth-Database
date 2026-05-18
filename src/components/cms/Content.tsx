@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import { useContent } from '@/contexts/ContentContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { cmsTranslation } from '@/i18n/cms-locales';
 import type { ContentStyles } from '@/services/content';
 
 type AsProp = keyof React.JSX.IntrinsicElements;
@@ -42,6 +44,7 @@ export const Content: React.FC<ContentProps> = ({
   children,
 }) => {
   const entry = useContent(id);
+  const { language } = useLanguage();
   const Tag = as as AsProp;
 
   const mergedStyle = useMemo(
@@ -49,10 +52,43 @@ export const Content: React.FC<ContentProps> = ({
     [entry?.styles, style],
   );
 
+  // For non-English, the i18n translation for this CMS key wins over the
+  // English CMS override / fallback so the whole page actually localizes.
+  const translated = cmsTranslation(language, id);
+
   const sanitizedHtml = useMemo(() => {
     if (!entry || entry.contentType !== 'RICH_TEXT') return '';
     return DOMPurify.sanitize(entry.content || '');
   }, [entry?.contentType, entry?.content]);
+
+  // A translation is HTML if it contains tags OR its CMS key is RICH_TEXT.
+  // (entry is often absent — most keys have no admin override — so we can't
+  // rely on entry.contentType alone.)
+  const translationIsHtml = !!translated && /<[a-z][\s\S]*>/i.test(translated);
+
+  const sanitizedTranslation = useMemo(() => {
+    if (!translated || !translationIsHtml) return '';
+    return DOMPurify.sanitize(translated);
+  }, [translated, translationIsHtml]);
+
+  if (translated) {
+    if (translationIsHtml) {
+      return (
+        <Tag
+          className={className}
+          style={mergedStyle}
+          data-cms-id={id}
+          data-cms-lang={language}
+          dangerouslySetInnerHTML={{ __html: sanitizedTranslation }}
+        />
+      );
+    }
+    return (
+      <Tag className={className} style={mergedStyle} data-cms-id={id} data-cms-lang={language}>
+        {translated}
+      </Tag>
+    );
+  }
 
   // No override yet — render fallback (or children for wrapping-usage compat).
   if (!entry || (!entry.content && !entry.imageUrl)) {

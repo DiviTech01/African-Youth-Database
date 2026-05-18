@@ -196,6 +196,95 @@ export class MailService {
     return this.send(this.adminEmail, `New user: ${user.email}`, html);
   }
 
+  // ── Newsletter: subscriber confirmation (transactional) ────
+  // Sent immediately to the person who just opted in. This is a 1:1
+  // transactional email, NOT a broadcast, so it does not require admin
+  // approval — it only confirms an action the recipient just took.
+
+  async sendNewsletterConfirmation(to: string, unsubscribeUrl: string) {
+    if (!this.resend) {
+      this.logger.warn('Email not sent — Resend not configured');
+      return;
+    }
+    const html = layout('You\'re subscribed', `
+      ${p('Thanks for subscribing to the <strong>African Youth Observatory</strong> monthly youth-data briefing.')}
+      ${p('Once a month you\'ll get a concise digest of new data, country movements, and policy insights across all 54 African countries — nothing else.')}
+      <div style="text-align:center;margin:24px 0;">
+        ${btn('Explore the Platform', process.env.FRONTEND_URL || 'https://africanyouthobservatory.org')}
+      </div>
+      ${p(`Not what you expected? <a href="${unsubscribeUrl}" style="color:${BRAND.gold};">Unsubscribe instantly</a>.`)}
+    `);
+    return this.send(to, 'You\'re subscribed to the Youth Observatory briefing', html);
+  }
+
+  // ── Newsletter: notify admin of a new subscriber ───────────
+
+  async sendNewSubscriberNotice(email: string, source?: string | null) {
+    if (!this.resend) return; // silent — this is a low-value notice
+    const html = layout('New newsletter subscriber', `
+      ${p('Someone just subscribed to the monthly youth-data briefing:')}
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr><td style="color:#888;padding:8px 12px;border-bottom:1px solid #222;width:120px;">Email</td>
+            <td style="color:#ccc;padding:8px 12px;border-bottom:1px solid #222;">${email}</td></tr>
+        <tr><td style="color:#888;padding:8px 12px;border-bottom:1px solid #222;">Source</td>
+            <td style="color:#ccc;padding:8px 12px;border-bottom:1px solid #222;">${source || '(unknown)'}</td></tr>
+      </table>
+    `);
+    return this.send(this.adminEmail, `New subscriber: ${email}`, html);
+  }
+
+  // ── Newsletter: ask an admin to review a drafted briefing ──
+
+  async sendBriefingApprovalRequest(campaign: { id: string; title: string; subject: string }) {
+    if (!this.resend) {
+      this.logger.warn('Approval request not sent — Resend not configured');
+      return;
+    }
+    const reviewUrl = `${process.env.FRONTEND_URL || 'https://africanyouthobservatory.org'}/admin/newsletter`;
+    const html = layout('A briefing is ready for review', `
+      ${p('A monthly youth-data briefing has been drafted and is <strong>waiting for your approval</strong>. It will NOT be sent to subscribers until you review and approve it.')}
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr><td style="color:#888;padding:8px 12px;border-bottom:1px solid #222;width:120px;">Title</td>
+            <td style="color:#ccc;padding:8px 12px;border-bottom:1px solid #222;">${campaign.title}</td></tr>
+        <tr><td style="color:#888;padding:8px 12px;border-bottom:1px solid #222;">Subject</td>
+            <td style="color:#ccc;padding:8px 12px;border-bottom:1px solid #222;">${campaign.subject}</td></tr>
+      </table>
+      <div style="text-align:center;margin:24px 0;">
+        ${btn('Review &amp; Approve', reviewUrl)}
+      </div>
+    `);
+    return this.send(this.adminEmail, `[Action needed] Approve briefing: ${campaign.title}`, html);
+  }
+
+  // ── Newsletter: render + send an approved briefing ─────────
+  // renderBriefing is reused by the admin preview endpoint so what an admin
+  // approves is byte-for-byte what subscribers receive.
+
+  renderBriefing(subject: string, innerHtml: string, unsubscribeUrl: string): string {
+    return layout(subject, `
+      ${innerHtml}
+      <div style="margin-top:28px;padding-top:16px;border-top:1px solid #222;">
+        <p style="color:#666;font-size:12px;line-height:1.6;margin:0;">
+          You're receiving this because you subscribed to African Youth Observatory
+          monthly briefings. <a href="${unsubscribeUrl}" style="color:${BRAND.gold};text-decoration:none;">Unsubscribe</a>.
+        </p>
+      </div>
+    `);
+  }
+
+  async sendBriefing(to: string, subject: string, innerHtml: string, unsubscribeUrl: string) {
+    if (!this.resend) {
+      this.logger.warn('Briefing not sent — Resend not configured');
+      throw new Error('Email service not configured (RESEND_API_KEY missing)');
+    }
+    return this.send(to, subject, this.renderBriefing(subject, innerHtml, unsubscribeUrl));
+  }
+
+  /** True when Resend is wired up — lets callers fail fast before a broadcast. */
+  get isConfigured(): boolean {
+    return this.resend !== null;
+  }
+
   // ── Core Send ──────────────────────────────────────────────
 
   private async send(to: string, subject: string, html: string) {

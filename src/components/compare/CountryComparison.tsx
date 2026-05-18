@@ -64,7 +64,7 @@ const countries = [
 ];
 
 const indicators = {
-  Population: ['Youth Population (15-24)', 'Youth as % of Total Population', 'Youth Growth Rate', 'Youth Urban/Rural Distribution'],
+  Population: ['Youth Population (15-35)', 'Youth as % of Total Population', 'Youth Growth Rate', 'Youth Urban/Rural Distribution'],
   Education: ['Youth Literacy Rate', 'Secondary School Enrollment', 'Tertiary Enrollment', 'Gender Parity in Education'],
   Health: ['Youth Access to Healthcare', 'HIV Prevalence Among Youth', 'Youth Mental Health Services', 'Youth Nutrition Status'],
   Employment: ['Youth Unemployment Rate', 'Youth Labor Force Participation', 'Youth in Informal Sector', 'Youth Average Wages'],

@@ -8,8 +8,11 @@ import {
   Query,
   Body,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { AdminService } from './admin.service';
 import {
   ImportWorldBankDto,
@@ -23,6 +26,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('admin')
 @Controller('admin')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
 @ApiBearerAuth()
 export class AdminController {

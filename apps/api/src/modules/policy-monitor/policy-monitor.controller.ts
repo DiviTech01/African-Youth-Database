@@ -4,6 +4,8 @@ import { PolicyMonitorService } from './policy-monitor.service';
 import { PolicyRankingsDto, PolicyComputeDto } from './policy-monitor.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @ApiTags('policy-monitor')
 @Controller('policy-monitor')
@@ -44,6 +46,7 @@ export class PolicyMonitorController {
   }
 
   @Post('compute')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @ApiBearerAuth()
   @ApiOperation({

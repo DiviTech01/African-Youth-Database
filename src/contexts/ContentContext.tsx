@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useMemo, useState, useCall
 import { useLocation } from 'react-router-dom';
 import { contentApi, type PublishedContentMap, type PublishedContent } from '@/services/content';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { cmsTranslation } from '@/i18n/cms-locales';
 
 interface ContentContextValue {
   map: PublishedContentMap;
@@ -70,12 +72,21 @@ export function useContent(key: string): PublishedContent | undefined {
 }
 
 /**
- * Return the published text for `key`, or `fallback` if the CMS has no
- * override yet. Use this for cases where a plain string is required (props on
- * 3rd-party components). For DOM-level edits prefer <Content>.
+ * Return the localized text for `key`.
+ *
+ * Resolution order:
+ *  - non-English: i18n translation for the CMS key (if any) → English CMS
+ *    override → `fallback`.
+ *  - English: CMS override → `fallback`.
+ *
+ * Use this for cases where a plain string is required (props on 3rd-party
+ * components). For DOM-level edits prefer <Content>.
  */
 export function useContentText(key: string, fallback: string): string {
+  const { language } = useLanguage();
   const entry = useContent(key);
+  const translated = cmsTranslation(language, key);
+  if (translated) return translated;
   const raw = entry?.content;
   return raw && raw.trim() ? raw : fallback;
 }

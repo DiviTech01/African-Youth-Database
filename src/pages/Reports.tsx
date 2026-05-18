@@ -52,7 +52,7 @@ const reports = [
   {
     id: 3,
     title: "Education Access and Quality Report",
-    description: "Examining educational attainment, enrollment rates, and learning outcomes for African youth aged 15-24.",
+    description: "Examining educational attainment, enrollment rates, and learning outcomes for African youth aged 15-35.",
     category: "Thematic Brief",
     type: "Thematic Report" as ReportType,
     theme: "Education",

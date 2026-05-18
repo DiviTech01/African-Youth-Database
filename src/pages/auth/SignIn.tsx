@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { AuthSwitch } from '@/components/ui/auth-switch';
+import LanguagePrompt from '@/components/LanguagePrompt';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -33,6 +34,7 @@ const SignIn = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-12">
+      <LanguagePrompt />
       {/* Grid BG */}
       <div
         className="absolute inset-0 opacity-30 w-full

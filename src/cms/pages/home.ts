@@ -13,7 +13,7 @@ export const homeEntries: CmsRegistryEntry[] = [
   { key: 'home.quick_stats.title', page: PAGE, section: 'quick_stats', contentType: 'TEXT', defaultContent: 'Key Statistics' },
   { key: 'home.quick_stats.subtitle', page: PAGE, section: 'quick_stats', contentType: 'RICH_TEXT', defaultContent: 'Explore essential data points on African youth across our five core thematic areas.' },
   { key: 'home.quick_stats.population.title', page: PAGE, section: 'quick_stats', contentType: 'TEXT', defaultContent: 'Population' },
-  { key: 'home.quick_stats.population.description', page: PAGE, section: 'quick_stats', contentType: 'TEXT', defaultContent: 'African youth aged 15-24' },
+  { key: 'home.quick_stats.population.description', page: PAGE, section: 'quick_stats', contentType: 'TEXT', defaultContent: 'African youth aged 15-35' },
   { key: 'home.quick_stats.education.title', page: PAGE, section: 'quick_stats', contentType: 'TEXT', defaultContent: 'Education' },
   { key: 'home.quick_stats.education.description', page: PAGE, section: 'quick_stats', contentType: 'TEXT', defaultContent: 'Secondary enrollment rate' },
   { key: 'home.quick_stats.health.title', page: PAGE, section: 'quick_stats', contentType: 'TEXT', defaultContent: 'Health' },
@@ -36,5 +36,5 @@ export const homeEntries: CmsRegistryEntry[] = [
   { key: 'home.featured.view_all', page: PAGE, section: 'featured', contentType: 'TEXT', defaultContent: 'View All Reports' },
 
   // Partners
-  { key: 'home.partners.heading', page: PAGE, section: 'partners', contentType: 'TEXT', defaultContent: 'Our Partners & Data Sources' },
+  { key: 'home.partners.heading', page: PAGE, section: 'partners', contentType: 'TEXT', defaultContent: 'Data Sources' },
 ];

@@ -478,6 +478,9 @@ model NewsletterSubscription {
   updatedAt    DateTime                     @updatedAt
   unsubscribedAt DateTime?
   metadata     Json?                        // optional extras (locale, country interest, etc.)
+  // One-click unsubscribe token embedded in every broadcast email. Nullable so
+  // pre-existing rows stay valid; backfilled lazily on next subscribe/send.
+  unsubscribeToken String?                  @unique
 
   @@index([status, createdAt])
 }
@@ -486,4 +489,42 @@ enum NewsletterSubscriptionStatus {
   SUBSCRIBED
   UNSUBSCRIBED
   BOUNCED
+}
+
+// A monthly (or ad-hoc) youth-data briefing. Briefings are NEVER sent
+// automatically — the scheduler only drafts one per month and emails an admin
+// for review. An admin must explicitly approve a campaign before it is sent to
+// the subscriber list. createdById/approvedById hold User ids (no FK, kept
+// loose so this stays a self-contained migration).
+model NewsletterCampaign {
+  id             String                   @id @default(cuid())
+  periodKey      String?                  @unique  // "2026-05" for monthly auto-drafts; null for ad-hoc
+  title          String                              // internal label, e.g. "May 2026 Youth Briefing"
+  subject        String                              // email subject line
+  bodyHtml       String                              // inner HTML body (wrapped in branded layout on send)
+  status         NewsletterCampaignStatus @default(DRAFT)
+  createdById    String?
+  approvedById   String?
+  recipientCount Int                      @default(0)
+  sentCount      Int                      @default(0)
+  failedCount    Int                      @default(0)
+  testSentTo     String?
+  error          String?
+  submittedAt    DateTime?
+  approvedAt     DateTime?
+  sentAt         DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@index([status, createdAt])
+}
+
+enum NewsletterCampaignStatus {
+  DRAFT             // editable, not yet submitted
+  PENDING_APPROVAL  // submitted, waiting on an admin
+  APPROVED          // admin approved; send in progress or queued
+  SENDING           // actively sending to subscribers
+  SENT              // delivered to the list
+  FAILED            // send aborted with an error
+  CANCELLED         // admin discarded it
 }

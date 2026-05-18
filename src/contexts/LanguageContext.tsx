@@ -1,19 +1,18 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { TRANSLATIONS, LANGUAGES, type Language } from '@/i18n/locales';
+import { detectDefaultLanguage } from '@/i18n/geo';
 
-export type Language = 'en' | 'fr' | 'ar' | 'pt' | 'sw';
-
-export const LANGUAGES: { code: Language; name: string; nativeName: string; dir: 'ltr' | 'rtl' }[] = [
-  { code: 'en', name: 'English', nativeName: 'English', dir: 'ltr' },
-  { code: 'fr', name: 'French', nativeName: 'Fran\u00e7ais', dir: 'ltr' },
-  { code: 'ar', name: 'Arabic', nativeName: '\u0627\u0644\u0639\u0631\u0628\u064a\u0629', dir: 'rtl' },
-  { code: 'pt', name: 'Portuguese', nativeName: 'Portugu\u00eas', dir: 'ltr' },
-  { code: 'sw', name: 'Swahili', nativeName: 'Kiswahili', dir: 'ltr' },
-];
+export type { Language };
+export { LANGUAGES };
 
 interface LanguageContextType {
   language: Language;
+  /** 'user' = explicit sticky choice; 'auto' = geo/fallback default. */
+  languageSource: 'user' | 'auto';
   setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
+  /** Lock in the current language as the user's sticky choice (no change). */
+  confirmLanguage: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
   dir: 'ltr' | 'rtl';
   languageInfo: typeof LANGUAGES[number];
 }
@@ -21,521 +20,34 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | null>(null);
 
 const STORAGE_KEY = 'ayd_language';
+// 'user' = visitor explicitly picked this language (sticky forever).
+// 'auto' = a default we chose (geo / fallback) and may still refine.
+const SOURCE_KEY = 'ayd_language_source';
 
-// Translation dictionaries
-const translations: Record<Language, Record<string, string>> = {
-  en: {
-    // Navigation
-    'nav.home': 'Home',
-    'nav.explore': 'Data Explorer',
-    'nav.youthIndex': 'Youth Index',
-    'nav.compare': 'Compare',
-    'nav.countries': 'Countries',
-    'nav.reports': 'Reports',
-    'nav.about': 'About',
-    'nav.insights': 'AI Insights',
-    'nav.ask': 'Ask AI',
-    'nav.policyMonitor': 'Policy Monitor',
-    'nav.experts': 'Experts',
-    'nav.dashboard': 'Dashboard',
-    'nav.settings': 'Settings',
-    'nav.admin': 'Admin',
-    'nav.signIn': 'Sign In',
-    'nav.signOut': 'Sign Out',
-    'nav.search': 'Search countries, themes...',
+/** Replace {name} placeholders with values from params. */
+function interpolate(template: string, params?: Record<string, string | number>): string {
+  if (!params) return template;
+  return template.replace(/\{(\w+)\}/g, (match, key) =>
+    key in params ? String(params[key]) : match,
+  );
+}
 
-    // Common
-    'common.loading': 'Loading...',
-    'common.error': 'Something went wrong',
-    'common.save': 'Save',
-    'common.cancel': 'Cancel',
-    'common.delete': 'Delete',
-    'common.edit': 'Edit',
-    'common.download': 'Download',
-    'common.export': 'Export',
-    'common.share': 'Share',
-    'common.viewProfile': 'View Profile',
-    'common.viewAll': 'View All',
-    'common.learnMore': 'Learn More',
-    'common.getStarted': 'Get Started',
-    'common.allCountries': 'All Countries',
-    'common.allThemes': 'All Themes',
-    'common.allRegions': 'All Regions',
-    'common.year': 'Year',
-    'common.score': 'Score',
-    'common.rank': 'Rank',
-    'common.change': 'Change',
-    'common.country': 'Country',
-    'common.region': 'Region',
-    'common.language': 'Language',
-    'common.yourCountry': 'Your Country',
-
-    // Homepage
-    'home.title': 'African Youth Observatory',
-    'home.subtitle': 'Powering policy, research, innovation, and investment decisions with trusted, accessible youth data across all 54 African countries.',
-    'home.searchPlaceholder': 'Search countries, indicators, themes...',
-    'home.exploreData': 'Explore Data',
-    'home.youthIndex': 'Youth Index',
-    'home.compareCountries': 'Compare Countries',
-    'home.keyStats': 'Key Statistics',
-    'home.keyStatsDesc': 'Explore essential data points on African youth across our five core thematic areas.',
-    'home.countries': 'Countries',
-    'home.indicators': 'Indicators',
-    'home.youthCovered': 'Youth Covered',
-
-    // Data Explorer
-    'explore.title': 'Data Explorer',
-    'explore.subtitle': 'Explore comprehensive data on African youth across multiple countries and themes.',
-    'explore.filters': 'Filters',
-    'explore.dataFilters': 'Data Filters',
-    'explore.africaMap': 'Africa Map',
-    'explore.mapHelp': 'Click on a country to view its youth data.',
-    'explore.selectTheme': 'Select a theme and indicator to display chart data',
-    'explore.askAnything': 'Ask anything about African youth data...',
-
-    // Countries
-    'countries.title': 'Country Profiles',
-    'countries.subtitle': 'Explore detailed youth data profiles for African countries.',
-    'countries.searchPlaceholder': 'Search countries...',
-    'countries.backToList': 'Back to Country List',
-    'countries.noResults': 'No countries found matching your search.',
-
-    // Youth Index
-    'youthIndex.title': 'African Youth Index',
-    'youthIndex.subtitle': 'Comprehensive ranking of African countries based on youth development outcomes.',
-    'youthIndex.fullRankings': 'Full Rankings',
-    'youthIndex.methodology': 'About the African Youth Index',
-    'youthIndex.education': 'Education',
-    'youthIndex.employment': 'Employment',
-    'youthIndex.health': 'Health',
-    'youthIndex.civic': 'Civic Engagement',
-    'youthIndex.high': 'High',
-    'youthIndex.medium': 'Medium',
-    'youthIndex.low': 'Low',
-
-    // Compare
-    'compare.title': 'Compare Countries',
-    'compare.subtitle': 'Compare youth statistics across multiple African countries.',
-
-    // Themes
-    'themes.title': 'Thematic Areas',
-    'themes.subtitle': 'Explore our nine core thematic areas of youth development in Africa.',
-    'themes.exploreData': 'Explore Data',
-    'themes.viewIndicators': 'View Indicators',
-    'themes.compareCountries': 'Compare Countries',
-
-    // Insights
-    'insights.title': 'AI Insights',
-    'insights.subtitle': 'AI-generated analysis of African youth data trends and anomalies.',
-    'insights.all': 'All',
-    'insights.trends': 'Trends',
-    'insights.anomalies': 'Anomalies',
-    'insights.recommendations': 'Recommendations',
-
-    // Policy Monitor
-    'policy.title': 'Youth Policy Monitor',
-    'policy.subtitle': 'Track youth policy compliance and implementation across African nations.',
-
-    // Experts
-    'experts.title': 'Expert Directory',
-    'experts.subtitle': 'Connect with leading youth development experts across Africa.',
-    'experts.register': 'Register as Expert',
-    'experts.searchPlaceholder': 'Search experts...',
-
-    // Dashboard
-    'dashboard.title': 'My Dashboard',
-    'dashboard.welcome': 'Welcome back!',
-    'dashboard.overviewFor': "Here's your overview for",
-    'dashboard.personalize': 'Personalize your experience',
-    'dashboard.personalizeDesc': 'Set your home country and preferences to customize your dashboard.',
-    'dashboard.addWidget': 'Add Widget',
-    'dashboard.favorites': 'Favorite Countries',
-    'dashboard.recentlyViewed': 'Recently Viewed',
-
-    // Settings
-    'settings.title': 'Settings',
-    'settings.myCountry': 'My Country',
-    'settings.myCountryDesc': 'Set your home country. This will personalize your experience across the platform.',
-    'settings.favorites': 'Favorite Countries',
-    'settings.favoritesDesc': 'Quick access to countries you track frequently.',
-    'settings.region': 'Preferred Region',
-    'settings.regionDesc': 'Filter data to your region by default.',
-    'settings.recentlyViewed': 'Recently Viewed',
-    'settings.reset': 'Reset All Preferences',
-    'settings.resetConfirm': 'Are you sure? This will clear all your personalization settings.',
-    'settings.language': 'Language',
-    'settings.languageDesc': 'Choose your preferred language for the interface.',
-
-    // Reports
-    'reports.title': 'Reports & Publications',
-    'reports.subtitle': 'Access comprehensive reports on African youth development.',
-
-    // About
-    'about.title': 'About the Platform',
-    'about.subtitle': 'Learn more about the African Youth Statistical Database.',
-    'about.mission': 'Our Mission',
-    'about.vision': 'Our Vision',
-
-    // Contact
-    'contact.title': 'Contact Us',
-    'contact.subtitle': "Get in touch with the African Youth Observatory team. We're here to help.",
-    'contact.send': 'Send Message',
-
-    // Auth
-    'auth.signIn': 'Welcome back',
-    'auth.signInDesc': 'Sign in to access your dashboard and explore youth data.',
-    'auth.signUp': 'Create your account',
-    'auth.signUpDesc': "Start exploring Africa's youth data today. It's free!",
-    'auth.email': 'Email',
-    'auth.password': 'Password',
-    'auth.name': 'Full Name',
-    'auth.forgotPassword': 'Forgot password?',
-    'auth.noAccount': "Don't have an account?",
-    'auth.hasAccount': 'Already have an account?',
-    'auth.createAccount': 'Create Account',
-    'auth.continueGoogle': 'Continue with Google',
-    'auth.orEmail': 'Or continue with email',
-
-    // Footer
-    'footer.navigation': 'Navigation',
-    'footer.resources': 'Resources',
-    'footer.contact': 'Contact',
-    'footer.newsletter': 'Newsletter',
-    'footer.subscribe': 'Subscribe',
-    'footer.copyright': '\u00a9 2025 African Youth Observatory. All rights reserved.',
-    'footer.privacy': 'Privacy Policy',
-    'footer.terms': 'Terms of Service',
-  },
-
-  fr: {
-    'nav.home': 'Accueil',
-    'nav.explore': 'Explorateur de donn\u00e9es',
-    'nav.youthIndex': 'Indice Jeunesse',
-    'nav.compare': 'Comparer',
-    'nav.countries': 'Pays',
-    'nav.reports': 'Rapports',
-    'nav.about': '\u00c0 propos',
-    'nav.insights': 'Analyses IA',
-    'nav.ask': 'Demander \u00e0 l\'IA',
-    'nav.policyMonitor': 'Suivi des politiques',
-    'nav.experts': 'Experts',
-    'nav.dashboard': 'Tableau de bord',
-    'nav.settings': 'Param\u00e8tres',
-    'nav.admin': 'Admin',
-    'nav.signIn': 'Se connecter',
-    'nav.signOut': 'Se d\u00e9connecter',
-    'nav.search': 'Rechercher pays, th\u00e8mes...',
-    'common.loading': 'Chargement...',
-    'common.error': 'Une erreur est survenue',
-    'common.save': 'Enregistrer',
-    'common.cancel': 'Annuler',
-    'common.delete': 'Supprimer',
-    'common.download': 'T\u00e9l\u00e9charger',
-    'common.export': 'Exporter',
-    'common.share': 'Partager',
-    'common.viewProfile': 'Voir le profil',
-    'common.viewAll': 'Voir tout',
-    'common.learnMore': 'En savoir plus',
-    'common.getStarted': 'Commencer',
-    'common.allCountries': 'Tous les pays',
-    'common.allThemes': 'Tous les th\u00e8mes',
-    'common.allRegions': 'Toutes les r\u00e9gions',
-    'common.year': 'Ann\u00e9e',
-    'common.score': 'Score',
-    'common.rank': 'Classement',
-    'common.change': 'Variation',
-    'common.country': 'Pays',
-    'common.region': 'R\u00e9gion',
-    'common.language': 'Langue',
-    'common.yourCountry': 'Votre pays',
-    'home.title': 'Base de Donn\u00e9es Jeunesse Africaine',
-    'home.subtitle': 'Des donn\u00e9es fiables et accessibles sur la jeunesse dans les 54 pays africains pour la politique, la recherche et l\'investissement.',
-    'home.searchPlaceholder': 'Rechercher pays, indicateurs, th\u00e8mes...',
-    'home.exploreData': 'Explorer les donn\u00e9es',
-    'home.youthIndex': 'Indice Jeunesse',
-    'home.compareCountries': 'Comparer les pays',
-    'home.keyStats': 'Statistiques cl\u00e9s',
-    'home.keyStatsDesc': 'D\u00e9couvrez les donn\u00e9es essentielles sur la jeunesse africaine.',
-    'home.countries': 'Pays',
-    'home.indicators': 'Indicateurs',
-    'home.youthCovered': 'Jeunes couverts',
-    'explore.title': 'Explorateur de donn\u00e9es',
-    'explore.subtitle': 'Explorez les donn\u00e9es compl\u00e8tes sur la jeunesse africaine.',
-    'explore.filters': 'Filtres',
-    'explore.dataFilters': 'Filtres de donn\u00e9es',
-    'explore.africaMap': 'Carte de l\'Afrique',
-    'explore.mapHelp': 'Cliquez sur un pays pour voir ses donn\u00e9es.',
-    'explore.askAnything': 'Posez une question sur les donn\u00e9es jeunesse africaine...',
-    'countries.title': 'Profils des pays',
-    'countries.subtitle': 'Explorez les profils d\u00e9taill\u00e9s des donn\u00e9es jeunesse par pays.',
-    'countries.searchPlaceholder': 'Rechercher des pays...',
-    'countries.backToList': 'Retour \u00e0 la liste',
-    'countries.noResults': 'Aucun pays trouv\u00e9.',
-    'youthIndex.title': 'Indice de la Jeunesse Africaine',
-    'youthIndex.subtitle': 'Classement des pays africains bas\u00e9 sur le d\u00e9veloppement de la jeunesse.',
-    'youthIndex.fullRankings': 'Classement complet',
-    'youthIndex.education': '\u00c9ducation',
-    'youthIndex.employment': 'Emploi',
-    'youthIndex.health': 'Sant\u00e9',
-    'youthIndex.civic': 'Engagement civique',
-    'youthIndex.high': '\u00c9lev\u00e9',
-    'youthIndex.medium': 'Moyen',
-    'youthIndex.low': 'Faible',
-    'compare.title': 'Comparer les pays',
-    'compare.subtitle': 'Comparez les statistiques jeunesse entre plusieurs pays africains.',
-    'themes.title': 'Th\u00e9matiques',
-    'themes.subtitle': 'Explorez nos neuf domaines th\u00e9matiques du d\u00e9veloppement de la jeunesse en Afrique.',
-    'insights.title': 'Analyses IA',
-    'insights.subtitle': 'Analyse g\u00e9n\u00e9r\u00e9e par IA des tendances et anomalies des donn\u00e9es jeunesse.',
-    'insights.all': 'Tout',
-    'insights.trends': 'Tendances',
-    'insights.anomalies': 'Anomalies',
-    'insights.recommendations': 'Recommandations',
-    'policy.title': 'Suivi des Politiques Jeunesse',
-    'policy.subtitle': 'Suivez la conformit\u00e9 et la mise en \u0153uvre des politiques jeunesse.',
-    'experts.title': 'Annuaire des experts',
-    'experts.subtitle': 'Connectez-vous avec les experts en d\u00e9veloppement de la jeunesse.',
-    'experts.register': 'S\'inscrire comme expert',
-    'experts.searchPlaceholder': 'Rechercher des experts...',
-    'dashboard.title': 'Mon tableau de bord',
-    'dashboard.welcome': 'Bon retour !',
-    'dashboard.overviewFor': 'Votre aper\u00e7u pour',
-    'dashboard.personalize': 'Personnalisez votre exp\u00e9rience',
-    'dashboard.personalizeDesc': 'D\u00e9finissez votre pays et vos pr\u00e9f\u00e9rences.',
-    'dashboard.addWidget': 'Ajouter un widget',
-    'dashboard.favorites': 'Pays favoris',
-    'dashboard.recentlyViewed': 'Vus r\u00e9cemment',
-    'settings.title': 'Param\u00e8tres',
-    'settings.myCountry': 'Mon pays',
-    'settings.myCountryDesc': 'D\u00e9finissez votre pays d\'origine pour personnaliser votre exp\u00e9rience.',
-    'settings.favorites': 'Pays favoris',
-    'settings.favoritesDesc': 'Acc\u00e8s rapide aux pays que vous suivez.',
-    'settings.region': 'R\u00e9gion pr\u00e9f\u00e9r\u00e9e',
-    'settings.regionDesc': 'Filtrer les donn\u00e9es par d\u00e9faut pour votre r\u00e9gion.',
-    'settings.language': 'Langue',
-    'settings.languageDesc': 'Choisissez votre langue pr\u00e9f\u00e9r\u00e9e.',
-    'settings.reset': 'R\u00e9initialiser les pr\u00e9f\u00e9rences',
-    'reports.title': 'Rapports et publications',
-    'reports.subtitle': 'Acc\u00e9dez aux rapports sur le d\u00e9veloppement de la jeunesse africaine.',
-    'about.title': '\u00c0 propos de la plateforme',
-    'about.subtitle': 'En savoir plus sur la Base de Donn\u00e9es Jeunesse Africaine.',
-    'about.mission': 'Notre mission',
-    'about.vision': 'Notre vision',
-    'contact.title': 'Nous contacter',
-    'contact.subtitle': 'Contactez l\'\u00e9quipe. Nous sommes l\u00e0 pour vous aider.',
-    'contact.send': 'Envoyer le message',
-    'auth.signIn': 'Bon retour',
-    'auth.signInDesc': 'Connectez-vous pour acc\u00e9der \u00e0 votre tableau de bord.',
-    'auth.signUp': 'Cr\u00e9ez votre compte',
-    'auth.signUpDesc': 'Explorez les donn\u00e9es jeunesse africaine. C\'est gratuit !',
-    'auth.email': 'E-mail',
-    'auth.password': 'Mot de passe',
-    'auth.name': 'Nom complet',
-    'auth.forgotPassword': 'Mot de passe oubli\u00e9 ?',
-    'auth.noAccount': 'Pas encore de compte ?',
-    'auth.hasAccount': 'D\u00e9j\u00e0 un compte ?',
-    'auth.createAccount': 'Cr\u00e9er un compte',
-    'auth.continueGoogle': 'Continuer avec Google',
-    'auth.orEmail': 'Ou continuer par e-mail',
-    'footer.navigation': 'Navigation',
-    'footer.resources': 'Ressources',
-    'footer.contact': 'Contact',
-    'footer.newsletter': 'Bulletin',
-    'footer.subscribe': 'S\'abonner',
-    'footer.copyright': '\u00a9 2025 Base de Donn\u00e9es Jeunesse Africaine. Tous droits r\u00e9serv\u00e9s.',
-    'footer.privacy': 'Politique de confidentialit\u00e9',
-    'footer.terms': 'Conditions d\'utilisation',
-  },
-
-  ar: {
-    'nav.home': '\u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629',
-    'nav.explore': '\u0645\u0633\u062a\u0643\u0634\u0641 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a',
-    'nav.youthIndex': '\u0645\u0624\u0634\u0631 \u0627\u0644\u0634\u0628\u0627\u0628',
-    'nav.compare': '\u0645\u0642\u0627\u0631\u0646\u0629',
-    'nav.countries': '\u0627\u0644\u062f\u0648\u0644',
-    'nav.reports': '\u0627\u0644\u062a\u0642\u0627\u0631\u064a\u0631',
-    'nav.about': '\u062d\u0648\u0644',
-    'nav.insights': '\u062a\u062d\u0644\u064a\u0644\u0627\u062a \u0630\u0643\u064a\u0629',
-    'nav.ask': '\u0627\u0633\u0623\u0644 \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a',
-    'nav.policyMonitor': '\u0645\u0631\u0627\u0642\u0628\u0629 \u0627\u0644\u0633\u064a\u0627\u0633\u0627\u062a',
-    'nav.experts': '\u0627\u0644\u062e\u0628\u0631\u0627\u0621',
-    'nav.dashboard': '\u0644\u0648\u062d\u0629 \u0627\u0644\u062a\u062d\u0643\u0645',
-    'nav.settings': '\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a',
-    'nav.admin': '\u0627\u0644\u0625\u062f\u0627\u0631\u0629',
-    'nav.signIn': '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644',
-    'nav.signOut': '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c',
-    'nav.search': '\u0628\u062d\u062b \u0639\u0646 \u0627\u0644\u062f\u0648\u0644\u060c \u0627\u0644\u0645\u0648\u0627\u0636\u064a\u0639...',
-    'common.loading': '\u062c\u0627\u0631\u064a \u0627\u0644\u062a\u062d\u0645\u064a\u0644...',
-    'common.save': '\u062d\u0641\u0638',
-    'common.cancel': '\u0625\u0644\u063a\u0627\u0621',
-    'common.delete': '\u062d\u0630\u0641',
-    'common.download': '\u062a\u062d\u0645\u064a\u0644',
-    'common.export': '\u062a\u0635\u062f\u064a\u0631',
-    'common.share': '\u0645\u0634\u0627\u0631\u0643\u0629',
-    'common.viewProfile': '\u0639\u0631\u0636 \u0627\u0644\u0645\u0644\u0641',
-    'common.allCountries': '\u062c\u0645\u064a\u0639 \u0627\u0644\u062f\u0648\u0644',
-    'common.allThemes': '\u062c\u0645\u064a\u0639 \u0627\u0644\u0645\u0648\u0627\u0636\u064a\u0639',
-    'common.country': '\u0627\u0644\u062f\u0648\u0644\u0629',
-    'common.region': '\u0627\u0644\u0645\u0646\u0637\u0642\u0629',
-    'common.language': '\u0627\u0644\u0644\u063a\u0629',
-    'common.yourCountry': '\u0628\u0644\u062f\u0643',
-    'home.title': '\u0642\u0627\u0639\u062f\u0629 \u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u0628\u0627\u0628 \u0627\u0644\u0623\u0641\u0631\u064a\u0642\u064a',
-    'home.subtitle': '\u0628\u064a\u0627\u0646\u0627\u062a \u0645\u0648\u062b\u0648\u0642\u0629 \u0639\u0646 \u0627\u0644\u0634\u0628\u0627\u0628 \u0641\u064a 54 \u062f\u0648\u0644\u0629 \u0623\u0641\u0631\u064a\u0642\u064a\u0629',
-    'home.exploreData': '\u0627\u0633\u062a\u0643\u0634\u0641 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a',
-    'home.countries': '\u0627\u0644\u062f\u0648\u0644',
-    'home.indicators': '\u0627\u0644\u0645\u0624\u0634\u0631\u0627\u062a',
-    'home.youthCovered': '\u0634\u0628\u0627\u0628 \u0645\u063a\u0637\u0649',
-    'explore.title': '\u0645\u0633\u062a\u0643\u0634\u0641 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a',
-    'explore.subtitle': '\u0627\u0633\u062a\u0643\u0634\u0641 \u0628\u064a\u0627\u0646\u0627\u062a \u0634\u0627\u0645\u0644\u0629 \u0639\u0646 \u0627\u0644\u0634\u0628\u0627\u0628 \u0627\u0644\u0623\u0641\u0631\u064a\u0642\u064a',
-    'countries.title': '\u0645\u0644\u0641\u0627\u062a \u0627\u0644\u062f\u0648\u0644',
-    'countries.subtitle': '\u0627\u0633\u062a\u0643\u0634\u0641 \u0645\u0644\u0641\u0627\u062a \u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u0628\u0627\u0628 \u0627\u0644\u062a\u0641\u0635\u064a\u0644\u064a\u0629',
-    'countries.searchPlaceholder': '\u0628\u062d\u062b \u0639\u0646 \u062f\u0648\u0644\u0629...',
-    'youthIndex.title': '\u0645\u0624\u0634\u0631 \u0627\u0644\u0634\u0628\u0627\u0628 \u0627\u0644\u0623\u0641\u0631\u064a\u0642\u064a',
-    'youthIndex.education': '\u0627\u0644\u062a\u0639\u0644\u064a\u0645',
-    'youthIndex.employment': '\u0627\u0644\u062a\u0648\u0638\u064a\u0641',
-    'youthIndex.health': '\u0627\u0644\u0635\u062d\u0629',
-    'youthIndex.civic': '\u0627\u0644\u0645\u0634\u0627\u0631\u0643\u0629 \u0627\u0644\u0645\u062f\u0646\u064a\u0629',
-    'themes.title': '\u0627\u0644\u0645\u062c\u0627\u0644\u0627\u062a \u0627\u0644\u0645\u0648\u0636\u0648\u0639\u064a\u0629',
-    'insights.title': '\u062a\u062d\u0644\u064a\u0644\u0627\u062a \u0630\u0643\u064a\u0629',
-    'policy.title': '\u0645\u0631\u0627\u0642\u0628\u0629 \u0633\u064a\u0627\u0633\u0627\u062a \u0627\u0644\u0634\u0628\u0627\u0628',
-    'experts.title': '\u062f\u0644\u064a\u0644 \u0627\u0644\u062e\u0628\u0631\u0627\u0621',
-    'dashboard.title': '\u0644\u0648\u062d\u0629 \u0627\u0644\u062a\u062d\u0643\u0645',
-    'settings.title': '\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a',
-    'settings.language': '\u0627\u0644\u0644\u063a\u0629',
-    'settings.languageDesc': '\u0627\u062e\u062a\u0631 \u0644\u063a\u062a\u0643 \u0627\u0644\u0645\u0641\u0636\u0644\u0629',
-    'reports.title': '\u0627\u0644\u062a\u0642\u0627\u0631\u064a\u0631 \u0648\u0627\u0644\u0645\u0646\u0634\u0648\u0631\u0627\u062a',
-    'about.title': '\u062d\u0648\u0644 \u0627\u0644\u0645\u0646\u0635\u0629',
-    'about.mission': '\u0645\u0647\u0645\u062a\u0646\u0627',
-    'about.vision': '\u0631\u0624\u064a\u062a\u0646\u0627',
-    'contact.title': '\u0627\u062a\u0635\u0644 \u0628\u0646\u0627',
-    'contact.send': '\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629',
-    'auth.signIn': '\u0645\u0631\u062d\u0628\u064b\u0627 \u0628\u0639\u0648\u062f\u062a\u0643',
-    'auth.signUp': '\u0623\u0646\u0634\u0626 \u062d\u0633\u0627\u0628\u0643',
-    'auth.email': '\u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a',
-    'auth.password': '\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631',
-    'footer.copyright': '\u00a9 2025 \u0642\u0627\u0639\u062f\u0629 \u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u0628\u0627\u0628 \u0627\u0644\u0623\u0641\u0631\u064a\u0642\u064a. \u062c\u0645\u064a\u0639 \u0627\u0644\u062d\u0642\u0648\u0642 \u0645\u062d\u0641\u0648\u0638\u0629.',
-  },
-
-  pt: {
-    'nav.home': 'In\u00edcio',
-    'nav.explore': 'Explorador de Dados',
-    'nav.youthIndex': '\u00cdndice da Juventude',
-    'nav.compare': 'Comparar',
-    'nav.countries': 'Pa\u00edses',
-    'nav.reports': 'Relat\u00f3rios',
-    'nav.about': 'Sobre',
-    'nav.insights': 'An\u00e1lises IA',
-    'nav.ask': 'Perguntar \u00e0 IA',
-    'nav.policyMonitor': 'Monitor de Pol\u00edticas',
-    'nav.experts': 'Especialistas',
-    'nav.dashboard': 'Painel',
-    'nav.settings': 'Configura\u00e7\u00f5es',
-    'nav.signIn': 'Entrar',
-    'nav.signOut': 'Sair',
-    'nav.search': 'Pesquisar pa\u00edses, temas...',
-    'common.loading': 'Carregando...',
-    'common.save': 'Salvar',
-    'common.cancel': 'Cancelar',
-    'common.download': 'Baixar',
-    'common.export': 'Exportar',
-    'common.share': 'Compartilhar',
-    'common.viewProfile': 'Ver perfil',
-    'common.allCountries': 'Todos os pa\u00edses',
-    'common.country': 'Pa\u00eds',
-    'common.region': 'Regi\u00e3o',
-    'common.language': 'Idioma',
-    'common.yourCountry': 'Seu pa\u00eds',
-    'home.title': 'Base de Dados da Juventude Africana',
-    'home.subtitle': 'Dados confi\u00e1veis sobre a juventude nos 54 pa\u00edses africanos.',
-    'home.exploreData': 'Explorar dados',
-    'home.countries': 'Pa\u00edses',
-    'home.indicators': 'Indicadores',
-    'home.youthCovered': 'Jovens cobertos',
-    'explore.title': 'Explorador de Dados',
-    'countries.title': 'Perfis dos Pa\u00edses',
-    'countries.searchPlaceholder': 'Pesquisar pa\u00edses...',
-    'youthIndex.title': '\u00cdndice da Juventude Africana',
-    'youthIndex.education': 'Educa\u00e7\u00e3o',
-    'youthIndex.employment': 'Emprego',
-    'youthIndex.health': 'Sa\u00fade',
-    'youthIndex.civic': 'Engajamento c\u00edvico',
-    'themes.title': '\u00c1reas Tem\u00e1ticas',
-    'insights.title': 'An\u00e1lises IA',
-    'policy.title': 'Monitor de Pol\u00edticas da Juventude',
-    'experts.title': 'Diret\u00f3rio de Especialistas',
-    'dashboard.title': 'Meu Painel',
-    'settings.title': 'Configura\u00e7\u00f5es',
-    'settings.language': 'Idioma',
-    'settings.languageDesc': 'Escolha seu idioma preferido.',
-    'reports.title': 'Relat\u00f3rios e Publica\u00e7\u00f5es',
-    'about.title': 'Sobre a Plataforma',
-    'contact.title': 'Contacte-nos',
-    'contact.send': 'Enviar mensagem',
-    'auth.signIn': 'Bem-vindo de volta',
-    'auth.signUp': 'Crie sua conta',
-    'footer.copyright': '\u00a9 2025 Base de Dados da Juventude Africana. Todos os direitos reservados.',
-  },
-
-  sw: {
-    'nav.home': 'Nyumbani',
-    'nav.explore': 'Chunguza Data',
-    'nav.youthIndex': 'Fahirisi ya Vijana',
-    'nav.compare': 'Linganisha',
-    'nav.countries': 'Nchi',
-    'nav.reports': 'Ripoti',
-    'nav.about': 'Kuhusu',
-    'nav.insights': 'Uchambuzi wa AI',
-    'nav.ask': 'Uliza AI',
-    'nav.policyMonitor': 'Ufuatiliaji wa Sera',
-    'nav.experts': 'Wataalamu',
-    'nav.dashboard': 'Dashibodi',
-    'nav.settings': 'Mipangilio',
-    'nav.signIn': 'Ingia',
-    'nav.signOut': 'Ondoka',
-    'nav.search': 'Tafuta nchi, mada...',
-    'common.loading': 'Inapakia...',
-    'common.save': 'Hifadhi',
-    'common.cancel': 'Ghairi',
-    'common.download': 'Pakua',
-    'common.export': 'Hamisha',
-    'common.share': 'Shiriki',
-    'common.viewProfile': 'Tazama wasifu',
-    'common.allCountries': 'Nchi zote',
-    'common.country': 'Nchi',
-    'common.region': 'Mkoa',
-    'common.language': 'Lugha',
-    'common.yourCountry': 'Nchi yako',
-    'home.title': 'Hifadhidata ya Vijana wa Afrika',
-    'home.subtitle': 'Data ya kuaminika kuhusu vijana katika nchi 54 za Afrika.',
-    'home.exploreData': 'Chunguza data',
-    'home.countries': 'Nchi',
-    'home.indicators': 'Viashiria',
-    'home.youthCovered': 'Vijana waliofikiwa',
-    'explore.title': 'Chunguza Data',
-    'countries.title': 'Wasifu wa Nchi',
-    'countries.searchPlaceholder': 'Tafuta nchi...',
-    'youthIndex.title': 'Fahirisi ya Vijana wa Afrika',
-    'youthIndex.education': 'Elimu',
-    'youthIndex.employment': 'Ajira',
-    'youthIndex.health': 'Afya',
-    'youthIndex.civic': 'Ushiriki wa kiraia',
-    'themes.title': 'Maeneo ya Mada',
-    'insights.title': 'Uchambuzi wa AI',
-    'policy.title': 'Ufuatiliaji wa Sera za Vijana',
-    'experts.title': 'Orodha ya Wataalamu',
-    'dashboard.title': 'Dashibodi Yangu',
-    'settings.title': 'Mipangilio',
-    'settings.language': 'Lugha',
-    'settings.languageDesc': 'Chagua lugha unayopendelea.',
-    'reports.title': 'Ripoti na Machapisho',
-    'about.title': 'Kuhusu Jukwaa',
-    'contact.title': 'Wasiliana Nasi',
-    'contact.send': 'Tuma ujumbe',
-    'auth.signIn': 'Karibu tena',
-    'auth.signUp': 'Fungua akaunti',
-    'footer.copyright': '\u00a9 2025 Hifadhidata ya Vijana wa Afrika. Haki zote zimehifadhiwa.',
-  },
-};
+// Dev-only guarantee that every non-English file has full key parity with `en`.
+if (import.meta.env?.DEV) {
+  const enKeys = Object.keys(TRANSLATIONS.en);
+  (Object.keys(TRANSLATIONS) as Language[])
+    .filter((lang) => lang !== 'en')
+    .forEach((lang) => {
+      const missing = enKeys.filter((k) => !(k in TRANSLATIONS[lang]));
+      if (missing.length > 0) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[i18n] "${lang}" is missing ${missing.length} key(s) present in "en":`,
+          missing,
+        );
+      }
+    });
+}
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
@@ -546,37 +58,97 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     return 'en';
   });
 
-  const setLanguage = useCallback((lang: Language) => {
-    setLanguageState(lang);
-    localStorage.setItem(STORAGE_KEY, lang);
+  // Was the current language an explicit user choice (sticky) or an auto
+  // default? Kept as state (for reactive consumers like the sign-in prompt)
+  // mirrored into a ref (for the async geo check).
+  const [languageSource, setLanguageSourceState] = useState<'user' | 'auto'>(() => {
+    try {
+      return localStorage.getItem(SOURCE_KEY) === 'user' ? 'user' : 'auto';
+    } catch {
+      return 'auto';
+    }
+  });
+  const sourceRef = useRef<'user' | 'auto'>(languageSource);
+
+  const markSource = useCallback((s: 'user' | 'auto') => {
+    sourceRef.current = s;
+    setLanguageSourceState(s);
+    try {
+      localStorage.setItem(SOURCE_KEY, s);
+    } catch {}
   }, []);
 
-  // Apply RTL direction to document
+  const setLanguage = useCallback(
+    (lang: Language) => {
+      // An explicit pick is sticky — record it so geo never overrides it again.
+      markSource('user');
+      setLanguageState(lang);
+      try {
+        localStorage.setItem(STORAGE_KEY, lang);
+      } catch {}
+    },
+    [markSource],
+  );
+
+  // Lock in the current (auto-detected) language as the user's sticky choice
+  // without changing it — the "keep this language" action on the prompt.
+  const confirmLanguage = useCallback(() => {
+    markSource('user');
+  }, [markSource]);
+
+  // On first load, if the visitor never explicitly chose a language, default
+  // to the main language of the country they're opening the site from.
+  const geoChecked = useRef(false);
   useEffect(() => {
-    const info = LANGUAGES.find(l => l.code === language);
+    if (geoChecked.current || sourceRef.current === 'user') return;
+    geoChecked.current = true;
+    let cancelled = false;
+    detectDefaultLanguage()
+      .then((detected) => {
+        if (cancelled || !detected || sourceRef.current === 'user') return;
+        setLanguageState((prev) => {
+          if (prev === detected) return prev;
+          try {
+            localStorage.setItem(STORAGE_KEY, detected);
+          } catch {}
+          return detected;
+        });
+        markSource('auto');
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [markSource]);
+
+  // Apply RTL direction + lang attribute to the document.
+  useEffect(() => {
+    const info = LANGUAGES.find((l) => l.code === language);
     document.documentElement.dir = info?.dir || 'ltr';
     document.documentElement.lang = language;
   }, [language]);
 
-  const t = useCallback((key: string): string => {
-    return translations[language]?.[key] || translations.en[key] || key;
-  }, [language]);
+  const t = useCallback(
+    (key: string, params?: Record<string, string | number>): string => {
+      const template =
+        TRANSLATIONS[language]?.[key] ?? TRANSLATIONS.en[key] ?? key;
+      return interpolate(template, params);
+    },
+    [language],
+  );
 
   const dir = useMemo(() => {
-    return LANGUAGES.find(l => l.code === language)?.dir || 'ltr';
+    return LANGUAGES.find((l) => l.code === language)?.dir || 'ltr';
   }, [language]);
 
   const languageInfo = useMemo(() => {
-    return LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
+    return LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];
   }, [language]);
 
-  const value = useMemo(() => ({
-    language,
-    setLanguage,
-    t,
-    dir,
-    languageInfo,
-  }), [language, setLanguage, t, dir, languageInfo]);
+  const value = useMemo(
+    () => ({ language, languageSource, setLanguage, confirmLanguage, t, dir, languageInfo }),
+    [language, languageSource, setLanguage, confirmLanguage, t, dir, languageInfo],
+  );
 
   return (
     <LanguageContext.Provider value={value}>

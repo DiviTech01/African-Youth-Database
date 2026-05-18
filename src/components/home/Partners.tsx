@@ -2,59 +2,62 @@ import React from 'react';
 import { Logos3 } from '@/components/ui/logos3';
 import { useContentText } from '@/contexts/ContentContext';
 
+// Logos are self-hosted in /public/partners to avoid broken Wikimedia
+// hotlinks (their hash-based paths change on re-upload). Re-fetch from
+// commons.wikimedia.org/wiki/Special:FilePath/<file> if a logo needs updating.
 const partnerLogos = [
   {
     id: "au",
     description: "African Union",
-    image: "https://upload.wikimedia.org/wikipedia/commons/5/51/Flag_of_the_African_Union.svg",
+    image: "/partners/au.svg",
     className: "h-10 w-auto",
   },
   {
     id: "undp",
     description: "United Nations Development Programme",
-    image: "https://upload.wikimedia.org/wikipedia/commons/5/5d/UNDP_logo.svg",
+    image: "/partners/undp.svg",
     className: "h-10 w-auto",
   },
   {
     id: "unicef",
     description: "UNICEF",
-    image: "https://upload.wikimedia.org/wikipedia/commons/e/ed/Logo_of_UNICEF.svg",
+    image: "/partners/unicef.svg",
     className: "h-10 w-auto",
   },
   {
     id: "who",
     description: "World Health Organization",
-    image: "https://upload.wikimedia.org/wikipedia/commons/c/c2/WHO_logo.svg",
+    image: "/partners/who.svg",
     className: "h-10 w-auto",
   },
   {
     id: "worldbank",
     description: "World Bank",
-    image: "https://upload.wikimedia.org/wikipedia/commons/8/87/The_World_Bank_logo.svg",
+    image: "/partners/worldbank.svg",
     className: "h-10 w-auto",
   },
   {
     id: "ilo",
     description: "International Labour Organization",
-    image: "https://upload.wikimedia.org/wikipedia/commons/0/0a/International_Labour_Organization_logo.svg",
+    image: "/partners/ilo.svg",
     className: "h-10 w-auto",
   },
   {
     id: "afdb",
     description: "African Development Bank",
-    image: "https://upload.wikimedia.org/wikipedia/commons/0/0d/African_Development_Bank_Logo.svg",
+    image: "/partners/afdb.svg",
     className: "h-10 w-auto",
   },
   {
     id: "unesco",
     description: "UNESCO",
-    image: "https://upload.wikimedia.org/wikipedia/commons/d/d0/Logo_of_UNESCO_%282017%29.svg",
+    image: "/partners/unesco.svg",
     className: "h-10 w-auto",
   },
 ];
 
 const Partners = () => {
-  const heading = useContentText('home.partners.heading', 'Our Partners & Data Sources');
+  const heading = useContentText('home.partners.heading', 'Data Sources');
   return <Logos3 heading={heading} logos={partnerLogos} />;
 };
 

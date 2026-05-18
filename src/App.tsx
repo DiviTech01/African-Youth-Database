@@ -54,6 +54,7 @@ const ContributorReports = lazy(() => import("./pages/ContributorReports"));
 const DataUpload = lazy(() => import("./pages/DataUpload"));
 const ContentManager = lazy(() => import("./pages/admin/ContentManager"));
 const ReportsManager = lazy(() => import("./pages/admin/ReportsManager"));
+const NewsletterManager = lazy(() => import("./pages/admin/NewsletterManager"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -150,6 +151,7 @@ const App = () => (
                 <Route path="/admin" element={<DashboardLayout><PageTransition><Admin /></PageTransition></DashboardLayout>} />
                 <Route path="/admin/cms" element={<DashboardLayout><PageTransition><ContentManager /></PageTransition></DashboardLayout>} />
                 <Route path="/admin/reports" element={<DashboardLayout><PageTransition><ReportsManager /></PageTransition></DashboardLayout>} />
+                <Route path="/admin/newsletter" element={<DashboardLayout><PageTransition><NewsletterManager /></PageTransition></DashboardLayout>} />
               </Route>
 
               {/* Catch-all */}

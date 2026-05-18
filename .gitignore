@@ -43,3 +43,6 @@ docker-data/
 
 # OS
 Thumbs.db
+
+# Electron build artefacts — keep these out of git
+release/
