@@ -21,9 +21,16 @@ import {
   Upload,
   ArrowUp,
   X,
+  Mail,
+  ArrowLeft,
+  Maximize2,
+  Minimize2,
+  Command as CommandIcon,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminDensity } from '@/hooks/use-admin-density';
+import { AdminCommandPalette } from '@/components/admin/AdminCommandPalette';
 
 /**
  * One-time hint that points mobile users at the "Menu" button. Stored in
@@ -70,6 +77,7 @@ const adminLinks = [
   { to: '/admin', label: 'Admin Panel', icon: ShieldCheck },
   { to: '/admin/cms', label: 'Content Manager', icon: FileText },
   { to: '/admin/reports', label: 'Reports & Files', icon: FileText },
+  { to: '/admin/newsletter', label: 'Newsletter & Broadcasts', icon: Mail },
   { to: '/dashboard/data-upload', label: 'Upload Data', icon: Upload },
 ];
 
@@ -118,6 +126,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const isAdmin = user?.role === 'ADMIN';
   const isContributor = user?.role === 'CONTRIBUTOR';
+  // When the admin is inside /admin/*, the sidebar collapses down to admin-only
+  // nav so the dashboard doesn't double as the public-app launcher. They can
+  // jump back via the "Back to platform" link.
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const { density, toggle: toggleDensity } = useAdminDensity();
 
   const handleSignOut = () => {
     signOut();
@@ -199,7 +212,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </div>
 
       <nav className="flex-1 p-3 overflow-y-auto space-y-4">
-        {isAdmin && (
+        {isAdminRoute && isAdmin ? (
           <div>
             <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-400/60">
               Administration
@@ -209,34 +222,52 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <NavLink key={link.to} {...link} accent />
               ))}
             </div>
-          </div>
-        )}
-
-        {(isContributor || isAdmin) && (
-          <div>
-            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400/60">
-              Contributor
-            </p>
-            <div className="space-y-0.5">
-              {contributorLinks.map((link) => (
-                <NavLink key={link.to} {...link} />
-              ))}
+            <div className="mt-4 pt-3 border-t border-border">
+              <NavLink to="/dashboard" label="Back to platform" icon={ArrowLeft} />
             </div>
           </div>
-        )}
+        ) : (
+          <>
+            {isAdmin && (
+              <div>
+                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-400/60">
+                  Administration
+                </p>
+                <div className="space-y-0.5">
+                  {adminLinks.map((link) => (
+                    <NavLink key={link.to} {...link} accent />
+                  ))}
+                </div>
+              </div>
+            )}
 
-        <div>
-          {(isAdmin || isContributor) && (
-            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-              Data &amp; Analytics
-            </p>
-          )}
-          <div className="space-y-0.5">
-            {dataLinks.map((link) => (
-              <NavLink key={link.to} {...link} />
-            ))}
-          </div>
-        </div>
+            {(isContributor || isAdmin) && (
+              <div>
+                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400/60">
+                  Contributor
+                </p>
+                <div className="space-y-0.5">
+                  {contributorLinks.map((link) => (
+                    <NavLink key={link.to} {...link} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              {(isAdmin || isContributor) && (
+                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                  Data &amp; Analytics
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {dataLinks.map((link) => (
+                  <NavLink key={link.to} {...link} />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </nav>
 
       {/* User info + actions */}
@@ -329,7 +360,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </div>
 
       <nav className="flex-1 p-3 overflow-y-auto space-y-4">
-        {isAdmin && (
+        {isAdminRoute && isAdmin ? (
           <div>
             {!collapsed && (
               <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-400/60">
@@ -341,36 +372,56 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <NavLink key={link.to} {...link} accent isCollapsed={collapsed} />
               ))}
             </div>
-          </div>
-        )}
-
-        {(isContributor || isAdmin) && (
-          <div>
-            {!collapsed && (
-              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400/60">
-                Contributor
-              </p>
-            )}
-            <div className="space-y-0.5">
-              {contributorLinks.map((link) => (
-                <NavLink key={link.to} {...link} isCollapsed={collapsed} />
-              ))}
+            <div className="mt-4 pt-3 border-t border-border">
+              <NavLink to="/dashboard" label="Back to platform" icon={ArrowLeft} isCollapsed={collapsed} />
             </div>
           </div>
-        )}
+        ) : (
+          <>
+            {isAdmin && (
+              <div>
+                {!collapsed && (
+                  <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-400/60">
+                    Administration
+                  </p>
+                )}
+                <div className="space-y-0.5">
+                  {adminLinks.map((link) => (
+                    <NavLink key={link.to} {...link} accent isCollapsed={collapsed} />
+                  ))}
+                </div>
+              </div>
+            )}
 
-        <div>
-          {!collapsed && (isAdmin || isContributor) && (
-            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-              Data &amp; Analytics
-            </p>
-          )}
-          <div className="space-y-0.5">
-            {dataLinks.map((link) => (
-              <NavLink key={link.to} {...link} isCollapsed={collapsed} />
-            ))}
-          </div>
-        </div>
+            {(isContributor || isAdmin) && (
+              <div>
+                {!collapsed && (
+                  <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400/60">
+                    Contributor
+                  </p>
+                )}
+                <div className="space-y-0.5">
+                  {contributorLinks.map((link) => (
+                    <NavLink key={link.to} {...link} isCollapsed={collapsed} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              {!collapsed && (isAdmin || isContributor) && (
+                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                  Data &amp; Analytics
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {dataLinks.map((link) => (
+                  <NavLink key={link.to} {...link} isCollapsed={collapsed} />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </nav>
 
       {/* User info + actions */}
@@ -548,8 +599,38 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             </div>
           </div>
 
-          {/* Right side: avatar (signed in) or Sign in CTA (guest browsing). */}
+          {/* Right side: admin shortcuts + avatar (signed in) or Sign-in CTA. */}
           <div className="flex items-center gap-2 shrink-0">
+            {isAdminRoute && isAdmin && (
+              <>
+                {/* Command palette pill — also opens on ⌘K / Ctrl-K. */}
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event('admin-palette:open'))}
+                  className="hidden sm:inline-flex items-center gap-1.5 h-8 px-2 rounded-md border border-border bg-white/[0.04] text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.08] transition-colors"
+                  title="Open command palette (⌘K)"
+                >
+                  <CommandIcon className="h-3.5 w-3.5" />
+                  Jump to…
+                  <kbd className="ml-1 hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/40 border border-border text-[10px] font-mono">
+                    ⌘K
+                  </kbd>
+                </button>
+                {/* Density toggle. */}
+                <button
+                  type="button"
+                  onClick={toggleDensity}
+                  className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-border bg-white/[0.04] text-muted-foreground hover:text-foreground hover:bg-white/[0.08] transition-colors"
+                  title={density === 'compact' ? 'Switch to comfortable layout' : 'Switch to compact layout'}
+                >
+                  {density === 'compact' ? (
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  ) : (
+                    <Minimize2 className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </>
+            )}
             {user ? (
               <Link
                 to="/settings#profile"
@@ -583,10 +664,20 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             menu trigger. Auto-dismisses after one menu open or via the X button. */}
         <NavHintBanner active={!sidebarOpen} />
 
-        {/* Page Content */}
-        <main className="flex-1 p-3 sm:p-4 md:p-6">
+        {/* Page Content — admin pages honour the density preference. */}
+        <main
+          data-density={isAdminRoute ? density : 'comfortable'}
+          className={
+            isAdminRoute && density === 'compact'
+              ? 'flex-1 p-2 sm:p-3 md:p-4'
+              : 'flex-1 p-3 sm:p-4 md:p-6'
+          }
+        >
           {children}
         </main>
+        {/* Command palette — mounted only on admin pages so it doesn't intercept
+            ⌘K elsewhere (and so the bundle is tree-shakable on the public app). */}
+        {isAdminRoute && isAdmin && <AdminCommandPalette />}
       </div>
     </div>
   );

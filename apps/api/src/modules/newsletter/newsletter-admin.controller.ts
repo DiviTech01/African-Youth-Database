@@ -1,20 +1,31 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Header,
   Param,
   Post,
   Put,
+  Query,
   Request,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { NewsletterService } from './newsletter.service';
-import { CreateCampaignDto, UpdateCampaignDto, TestEmailDto } from './newsletter.dto';
+import {
+  CreateCampaignDto,
+  UpdateCampaignDto,
+  TestEmailDto,
+  ListSubscribersDto,
+} from './newsletter.dto';
 
 /**
  * Admin-only newsletter operations. Guarded explicitly with
@@ -34,6 +45,12 @@ export class NewsletterAdminController {
   @ApiOperation({ summary: 'Subscriber counts by status.' })
   subscriberStats() {
     return this.service.subscriberStats();
+  }
+
+  @Get('subscribers')
+  @ApiOperation({ summary: 'Paginated subscriber log with search and status filter.' })
+  listSubscribers(@Query() query: ListSubscribersDto) {
+    return this.service.listSubscribers(query);
   }
 
   @Get('campaigns')
@@ -91,9 +108,32 @@ export class NewsletterAdminController {
     return this.service.cancel(id);
   }
 
+  @Post('campaigns/:id/restore')
+  @ApiOperation({ summary: 'Restore a CANCELLED campaign back to DRAFT — powers Undo.' })
+  restore(@Param('id') id: string) {
+    return this.service.restore(id);
+  }
+
+  @Delete('campaigns/:id')
+  @ApiOperation({ summary: 'Permanently delete a DRAFT or CANCELLED campaign.' })
+  hardDelete(@Param('id') id: string) {
+    return this.service.hardDelete(id);
+  }
+
   @Post('campaigns/:id/test')
   @ApiOperation({ summary: 'Send a one-off test of this campaign to an email.' })
   test(@Param('id') id: string, @Body() dto: TestEmailDto) {
     return this.service.sendTest(id, dto.email);
+  }
+
+  @Post('attachments/upload')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024 } }))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Upload a file for use as a campaign attachment. Returns { label, url, sizeHint }.',
+  })
+  async uploadAttachment(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file received');
+    return this.service.uploadAttachment(file);
   }
 }

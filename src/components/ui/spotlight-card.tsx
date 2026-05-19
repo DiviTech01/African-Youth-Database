@@ -46,14 +46,21 @@ const GlowCard: React.FC<GlowCardProps> = ({
     if (!window.matchMedia('(hover: hover)').matches) return;
 
     const syncPointer = (e: PointerEvent) => {
-      const { clientX: x, clientY: y } = e;
-
-      if (cardRef.current) {
-        cardRef.current.style.setProperty('--x', x.toFixed(2));
-        cardRef.current.style.setProperty('--xp', (x / window.innerWidth).toFixed(2));
-        cardRef.current.style.setProperty('--y', y.toFixed(2));
-        cardRef.current.style.setProperty('--yp', (y / window.innerHeight).toFixed(2));
-      }
+      if (!cardRef.current) return;
+      // The radial-gradient is positioned in this card's own background box,
+      // so the spotlight center has to be in card-local coords, not viewport
+      // coords. Using clientX/clientY directly only landed the glow on the
+      // leftmost card (Population) — every other card's gradient origin sat
+      // far outside its own bounds and never rendered.
+      const rect = cardRef.current.getBoundingClientRect();
+      const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
+      cardRef.current.style.setProperty('--x', localX.toFixed(2));
+      cardRef.current.style.setProperty('--y', localY.toFixed(2));
+      // Keep the page-level fraction for the hue shift so colour still varies
+      // across the screen — that part was working as intended.
+      cardRef.current.style.setProperty('--xp', (e.clientX / window.innerWidth).toFixed(2));
+      cardRef.current.style.setProperty('--yp', (e.clientY / window.innerHeight).toFixed(2));
     };
 
     document.addEventListener('pointermove', syncPointer);

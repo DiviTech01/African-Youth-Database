@@ -1,9 +1,24 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { NewsletterCampaignStatus } from '@prisma/client';
+import Anthropic from '@anthropic-ai/sdk';
+import { NewsletterCampaignStatus, NewsletterAudience } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
-import { SubscribeDto, CreateCampaignDto, UpdateCampaignDto } from './newsletter.dto';
+import { R2Service } from '../content/r2.service';
+import {
+  SubscribeDto,
+  CreateCampaignDto,
+  UpdateCampaignDto,
+  ListSubscribersDto,
+} from './newsletter.dto';
+
+type AttachmentLink = { label: string; url: string; sizeHint?: string };
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 
 // Public, absolute base for the unsubscribe link embedded in every broadcast.
 // Deliberately points at the API (not FRONTEND_URL) so one-click unsubscribe
@@ -21,7 +36,37 @@ export class NewsletterService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly r2: R2Service,
   ) {}
+
+  // ── Attachment upload ─────────────────────────────────────
+  // Admins pick a file in the editor; we store it (R2 in prod, local-disk
+  // fallback in dev), then return a shape the campaign can save directly into
+  // its attachments[] array. Files are LINKED from the email, not attached —
+  // works for any size and keeps emails fast.
+  async uploadAttachment(
+    file: Express.Multer.File,
+  ): Promise<{ label: string; url: string; sizeHint: string }> {
+    if (!file?.buffer) {
+      throw new BadRequestException('No file received');
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      throw new BadRequestException('File is larger than 25 MB');
+    }
+    const stored = await this.r2.uploadFile(file, 'newsletter');
+    // r2.uploadFile returns url=null on the local-disk fallback (dev without
+    // R2). We still emit a usable link via /api/content/r2/object/<key> so
+    // recipients can download — but flag it in the sizeHint for visibility.
+    const url =
+      stored.url ??
+      `${process.env.PUBLIC_API_URL || 'http://localhost:3001'}/api/content/r2/object/${encodeURIComponent(stored.key)}`;
+    const ext = (file.originalname.split('.').pop() || '').toUpperCase().slice(0, 6);
+    return {
+      label: file.originalname,
+      url,
+      sizeHint: ext ? `${formatBytes(file.size)} · ${ext}` : formatBytes(file.size),
+    };
+  }
 
   private unsubscribeUrl(token: string): string {
     return `${PUBLIC_API_URL}/api/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
@@ -146,6 +191,8 @@ export class NewsletterService {
         title: dto.title.trim(),
         subject: dto.subject.trim(),
         bodyHtml: dto.bodyHtml,
+        audience: dto.audience ?? 'SUBSCRIBERS',
+        attachments: dto.attachments ? (dto.attachments as any) : undefined,
         status: 'DRAFT',
         createdById: userId ?? null,
       },
@@ -163,6 +210,9 @@ export class NewsletterService {
         title: dto.title?.trim() ?? undefined,
         subject: dto.subject?.trim() ?? undefined,
         bodyHtml: dto.bodyHtml ?? undefined,
+        audience: dto.audience ?? undefined,
+        // Pass through verbatim; pass null to clear, undefined to leave alone.
+        attachments: dto.attachments === undefined ? undefined : (dto.attachments as any),
       },
     });
   }
@@ -191,6 +241,30 @@ export class NewsletterService {
       where: { id },
       data: { status: 'CANCELLED' },
     });
+  }
+
+  /** Restore a CANCELLED campaign back to DRAFT — powers the "Undo" toast. */
+  async restore(id: string) {
+    const c = await this.getCampaign(id);
+    if (c.status !== 'CANCELLED') {
+      throw new BadRequestException(`Only a CANCELLED campaign can be restored (this is ${c.status})`);
+    }
+    return this.prisma.newsletterCampaign.update({
+      where: { id },
+      data: { status: 'DRAFT' },
+    });
+  }
+
+  /** Hard-delete a campaign. Guarded: never lose history for sent broadcasts. */
+  async hardDelete(id: string) {
+    const c = await this.getCampaign(id);
+    if (!['DRAFT', 'CANCELLED'].includes(c.status)) {
+      throw new BadRequestException(
+        `Only DRAFT or CANCELLED campaigns can be permanently deleted (this is ${c.status}).`,
+      );
+    }
+    await this.prisma.newsletterCampaign.delete({ where: { id } });
+    return { ok: true };
   }
 
   /**
@@ -225,14 +299,19 @@ export class NewsletterService {
     return updated;
   }
 
-  /** Render the exact HTML subscribers will receive (used by the preview UI). */
+  /** Render the exact HTML recipients will receive (used by the preview UI). */
   async previewHtml(id: string): Promise<string> {
     const c = await this.getCampaign(id);
-    return this.mail.renderBriefing(
-      c.subject,
-      c.bodyHtml,
-      this.unsubscribeUrl('preview-token-not-a-real-subscriber'),
-    );
+    const kind: 'subscriber' | 'user' = c.audience === 'USERS' ? 'user' : 'subscriber';
+    return this.mail.renderBriefing({
+      subject: c.subject,
+      innerHtml: c.bodyHtml,
+      unsubscribeUrl: kind === 'subscriber'
+        ? this.unsubscribeUrl('preview-token-not-a-real-subscriber')
+        : null,
+      audienceKind: kind,
+      attachments: this.coerceAttachments(c.attachments),
+    });
   }
 
   async sendTest(id: string, toEmail: string) {
@@ -240,17 +319,67 @@ export class NewsletterService {
       throw new BadRequestException('Email service is not configured (RESEND_API_KEY missing).');
     }
     const c = await this.getCampaign(id);
-    await this.mail.sendBriefing(
-      toEmail,
-      `[TEST] ${c.subject}`,
-      c.bodyHtml,
-      this.unsubscribeUrl('test-token-not-a-real-subscriber'),
-    );
+    const kind: 'subscriber' | 'user' = c.audience === 'USERS' ? 'user' : 'subscriber';
+    await this.mail.sendBriefing({
+      to: toEmail,
+      subject: `[TEST] ${c.subject}`,
+      innerHtml: c.bodyHtml,
+      unsubscribeUrl: kind === 'subscriber'
+        ? this.unsubscribeUrl('test-token-not-a-real-subscriber')
+        : null,
+      audienceKind: kind,
+      attachments: this.coerceAttachments(c.attachments),
+    });
     await this.prisma.newsletterCampaign.update({
       where: { id },
       data: { testSentTo: toEmail },
     });
     return { ok: true, sentTo: toEmail };
+  }
+
+  /** Defensive: the attachments column is Json — only let through well-formed rows. */
+  private coerceAttachments(json: any): AttachmentLink[] | null {
+    if (!json || !Array.isArray(json)) return null;
+    const out = json
+      .filter((a) => a && typeof a.label === 'string' && typeof a.url === 'string')
+      .map((a) => ({ label: a.label, url: a.url, sizeHint: a.sizeHint }));
+    return out.length ? out : null;
+  }
+
+  // ── Subscribers log (admin) ────────────────────────────────
+  async listSubscribers(query: ListSubscribersDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 50;
+    const where: any = {};
+    if (query.status) where.status = query.status;
+    if (query.search?.trim()) {
+      where.email = { contains: query.search.trim().toLowerCase(), mode: 'insensitive' };
+    }
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.newsletterSubscription.count({ where }),
+      this.prisma.newsletterSubscription.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          email: true,
+          source: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          unsubscribedAt: true,
+        },
+      }),
+    ]);
+    return {
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      rows,
+    };
   }
 
   // ── The actual broadcast ───────────────────────────────────
@@ -261,26 +390,80 @@ export class NewsletterService {
     const c = await this.prisma.newsletterCampaign.findUnique({ where: { id } });
     if (!c || c.status !== 'APPROVED') return;
 
-    const subs = await this.prisma.newsletterSubscription.findMany({
-      where: { status: 'SUBSCRIBED' },
-      select: { id: true, email: true, unsubscribeToken: true },
-    });
+    const attachments = this.coerceAttachments(c.attachments);
+    const audience = c.audience as NewsletterAudience;
 
+    // Build a deduped recipient list. Subscribers come first so they "win" the
+    // dedupe and get the proper unsubscribe link, even when audience is BOTH.
+    type Recip = {
+      email: string;
+      kind: 'subscriber' | 'user';
+      token: string | null;
+      subId?: string;
+    };
+    const recipMap = new Map<string, Recip>();
+
+    if (audience === 'SUBSCRIBERS' || audience === 'BOTH') {
+      const subs = await this.prisma.newsletterSubscription.findMany({
+        where: { status: 'SUBSCRIBED' },
+        select: { id: true, email: true, unsubscribeToken: true },
+      });
+      for (const s of subs) {
+        const email = s.email.toLowerCase();
+        if (!recipMap.has(email)) {
+          recipMap.set(email, { email, kind: 'subscriber', token: s.unsubscribeToken, subId: s.id });
+        }
+      }
+    }
+    if (audience === 'USERS' || audience === 'BOTH') {
+      const users = await this.prisma.user.findMany({
+        select: { email: true },
+      });
+      for (const u of users) {
+        const email = u.email?.toLowerCase();
+        if (!email) continue;
+        if (!recipMap.has(email)) {
+          recipMap.set(email, { email, kind: 'user', token: null });
+        }
+      }
+    }
+
+    const recipients = [...recipMap.values()];
     await this.prisma.newsletterCampaign.update({
       where: { id },
-      data: { status: 'SENDING', recipientCount: subs.length, sentCount: 0, failedCount: 0 },
+      data: {
+        status: 'SENDING',
+        recipientCount: recipients.length,
+        sentCount: 0,
+        failedCount: 0,
+      },
     });
 
     let sent = 0;
     let failed = 0;
-    for (const s of subs) {
-      const token = s.unsubscribeToken ?? (await this.ensureToken(s.id));
+    for (const r of recipients) {
+      // Subscribers need a token before sending. Backfill if absent (best-effort).
+      let token = r.token;
+      if (r.kind === 'subscriber' && !token && r.subId) {
+        try {
+          token = await this.ensureToken(r.subId);
+        } catch (e) {
+          this.logger.warn(`token backfill failed for ${r.email}: ${(e as Error).message}`);
+        }
+      }
       try {
-        await this.mail.sendBriefing(s.email, c.subject, c.bodyHtml, this.unsubscribeUrl(token));
+        await this.mail.sendBriefing({
+          to: r.email,
+          subject: c.subject,
+          innerHtml: c.bodyHtml,
+          unsubscribeUrl: r.kind === 'subscriber' && token ? this.unsubscribeUrl(token) : null,
+          audienceKind: r.kind,
+          attachments,
+        });
         sent++;
       } catch (e) {
         failed++;
-        this.logger.warn(`briefing send failed for ${s.email}: ${(e as Error).message}`);
+        this.logger.warn(`briefing send failed for ${r.email}: ${(e as Error).message}`);
       }
       if ((sent + failed) % 10 === 0) {
         await this.prisma.newsletterCampaign.update({
@@ -292,7 +475,7 @@ export class NewsletterService {
     }
 
     const status: NewsletterCampaignStatus =
-      sent === 0 && subs.length > 0 ? 'FAILED' : 'SENT';
+      sent === 0 && recipients.length > 0 ? 'FAILED' : 'SENT';
     await this.prisma.newsletterCampaign.update({
       where: { id },
       data: {
@@ -303,22 +486,28 @@ export class NewsletterService {
         error: status === 'FAILED' ? 'All sends failed — check Resend config/domain.' : null,
       },
     });
-    this.logger.log(`Campaign ${id} finished: ${sent} sent, ${failed} failed`);
+    this.logger.log(
+      `Campaign ${id} (audience=${audience}) finished: ${sent} sent, ${failed} failed`,
+    );
   }
 
   // ── Monthly auto-draft (called by the scheduler or admin) ──
   /**
-   * Idempotent per calendar month via the unique periodKey. Builds a starter
-   * briefing from the latest Youth Index, creates it as a DRAFT, then submits
-   * it for approval (which emails an admin). Returns the existing campaign if
-   * one was already created for this month.
+   * Idempotent per calendar month via the unique periodKey. If a draft for the
+   * current month already exists, returns it (no duplicate). Otherwise builds
+   * a starter briefing — Claude writes it from a live data context, with a
+   * static fallback if the AI call fails or no API key is configured —
+   * creates it as DRAFT, then submits it for admin approval.
+   *
+   * Returns { campaign, isNew } so the caller can tell admins whether a fresh
+   * draft was generated or whether the existing one was returned untouched.
    */
   async generateMonthlyDraft(now: Date = new Date()) {
     const periodKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
     const existing = await this.prisma.newsletterCampaign.findUnique({ where: { periodKey } });
     if (existing) {
       this.logger.log(`Monthly draft for ${periodKey} already exists (${existing.id})`);
-      return existing;
+      return { campaign: existing, isNew: false };
     }
 
     const monthName = now.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -339,17 +528,107 @@ export class NewsletterService {
     );
     // Route through the normal submit path so the admin gets the approval email.
     await this.submitForApproval(campaign.id);
-    return this.getCampaign(campaign.id);
+    const full = await this.getCampaign(campaign.id);
+    return { campaign: full, isNew: true };
   }
 
   private async composeMonthlyBody(monthName: string): Promise<string> {
+    // Try Claude first — it produces a much warmer, more analytical draft than
+    // a static table. Fall back to the static template if the AI call fails
+    // for any reason (no API key, rate limit, malformed output, etc.). The
+    // admin can edit before approval either way.
+    try {
+      const context = await this.buildBriefingContext();
+      const aiBody = await this.generateBodyWithAI(monthName, context);
+      if (aiBody && aiBody.trim().length > 100) return aiBody + this.draftWatermark();
+    } catch (e) {
+      this.logger.warn(`AI draft generation failed, falling back to static: ${(e as Error).message}`);
+    }
+    return this.composeStaticBody(monthName);
+  }
+
+  private draftWatermark(): string {
+    return `<p><em>This is an auto-generated draft. Edit before approving.</em></p>`;
+  }
+
+  /** Gather the live data the AI will reason over. Plain-text, compact. */
+  private async buildBriefingContext(): Promise<string> {
+    const latest = await this.prisma.youthIndexScore.findFirst({
+      orderBy: { year: 'desc' },
+      select: { year: true },
+    });
+    const stats = await this.subscriberStats();
+
+    let ctx = `Subscribers on the list: ${stats.SUBSCRIBED}.\n`;
+
+    if (latest?.year) {
+      const top = await this.prisma.youthIndexScore.findMany({
+        where: { year: latest.year },
+        orderBy: { rank: 'asc' },
+        take: 5,
+        include: { country: { select: { name: true } } },
+      });
+      ctx += `\nLatest Youth Index year: ${latest.year}.\nTop 5 ranked countries:\n`;
+      for (const t of top) {
+        ctx += `- #${t.rank} ${t.country?.name ?? 'Unknown'} — score ${t.overallScore.toFixed(1)} (Education ${t.educationScore.toFixed(1)}, Employment ${t.employmentScore.toFixed(1)}, Health ${t.healthScore.toFixed(1)})\n`;
+      }
+      // Biggest movers up
+      const movers = await this.prisma.youthIndexScore.findMany({
+        where: { year: latest.year, rankChange: { not: null } },
+        orderBy: { rankChange: 'desc' },
+        take: 3,
+        include: { country: { select: { name: true } } },
+      });
+      if (movers.length) {
+        ctx += `\nBiggest rank gainers vs previous year:\n`;
+        for (const m of movers) {
+          if ((m.rankChange ?? 0) <= 0) continue;
+          ctx += `- ${m.country?.name ?? 'Unknown'}: gained ${m.rankChange} positions to #${m.rank}\n`;
+        }
+      }
+    } else {
+      ctx += `\nNo Youth Index data computed yet — keep the briefing forward-looking and brief.\n`;
+    }
+    return ctx;
+  }
+
+  private async generateBodyWithAI(monthName: string, context: string): Promise<string> {
+    if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not set');
+    const client = new Anthropic();
+    const model = process.env.AI_MODEL || 'claude-sonnet-4-5';
+
+    const systemPrompt =
+      'You are writing a monthly youth-data briefing for the African Youth Observatory newsletter — a public email sent to researchers, policymakers, students, and civil-society practitioners. ' +
+      'Tone: warm, confident, briefly analytical. Surface the "so what". No filler, no hedging, no "as an AI" preamble. ' +
+      'Length: 180–260 words, 2–4 short paragraphs, optional bulleted list (3–5 items max). ' +
+      'Output ONLY clean inline HTML using <p>, <strong>, <em>, <ul>, <li>, <h3>. No inline styles, no <html>/<body>/<head>, no markdown, no code fences.';
+
+    const userPrompt =
+      `Month: ${monthName}\n\nLive data context:\n${context}\n\n` +
+      `Write the briefing now. Open with a concise hook (no greeting like "Dear subscribers"). ` +
+      `Use the context for specific names/numbers. Close with one forward-looking sentence.`;
+
+    const res = await client.messages.create({
+      model,
+      max_tokens: 1500,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+    const text = res.content
+      .filter((b: any) => b.type === 'text')
+      .map((b: any) => b.text)
+      .join('\n')
+      .trim();
+    return text;
+  }
+
+  private async composeStaticBody(monthName: string): Promise<string> {
     const latest = await this.prisma.youthIndexScore.findFirst({
       orderBy: { year: 'desc' },
       select: { year: true },
     });
 
-    let highlights = `<p style="color:#ccc;font-size:15px;line-height:1.6;margin:0 0 16px;">
-      Here's your ${monthName} snapshot of youth development across Africa.</p>`;
+    let html = `<p>Here's your ${monthName} snapshot of youth development across Africa.</p>`;
 
     if (latest?.year) {
       const top = await this.prisma.youthIndexScore.findMany({
@@ -359,27 +638,15 @@ export class NewsletterService {
         include: { country: { select: { name: true, flagEmoji: true } } },
       });
       if (top.length) {
-        const rows = top
-          .map(
-            (t) => `<tr>
-              <td style="color:#D4A017;padding:8px 12px;border-bottom:1px solid #222;width:48px;font-weight:700;">#${t.rank}</td>
-              <td style="color:#ccc;padding:8px 12px;border-bottom:1px solid #222;">${t.country?.flagEmoji ?? ''} ${t.country?.name ?? 'Unknown'}</td>
-              <td style="color:#ccc;padding:8px 12px;border-bottom:1px solid #222;text-align:right;">${t.overallScore.toFixed(1)}</td>
-            </tr>`,
-          )
-          .join('');
-        highlights += `
-          <p style="color:#ccc;font-size:15px;line-height:1.6;margin:16px 0 8px;">
-            <strong>Top-ranked countries — Youth Index ${latest.year}</strong></p>
-          <table style="width:100%;border-collapse:collapse;margin:0 0 16px;">${rows}</table>`;
+        html += `<h3>Top-ranked countries — Youth Index ${latest.year}</h3><ul>`;
+        for (const t of top) {
+          html += `<li><strong>#${t.rank}</strong> ${t.country?.flagEmoji ?? ''} ${t.country?.name ?? 'Unknown'} — ${t.overallScore.toFixed(1)}</li>`;
+        }
+        html += `</ul>`;
       }
     } else {
-      highlights += `<p style="color:#ccc;font-size:15px;line-height:1.6;margin:0 0 16px;">
-        New indicator data is being processed — full rankings return next month.</p>`;
+      html += `<p>New indicator data is being processed — full rankings return next month.</p>`;
     }
-
-    highlights += `<p style="color:#999;font-size:13px;line-height:1.6;margin:16px 0 0;">
-      <em>This is an auto-generated draft. Edit the copy before approving.</em></p>`;
-    return highlights;
+    return html + this.draftWatermark();
   }
 }

@@ -9,26 +9,42 @@ const BRAND = {
 };
 
 function layout(title: string, body: string): string {
+  // Inline styles drive the desktop look; the media query in <style> tightens
+  // paddings on small screens (Gmail iOS, Apple Mail, most modern clients
+  // honour it — those that strip it fall back to the desktop padding, which
+  // still reads fine on phones because the card flexes to 100% width).
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>${title}</title></head>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${title}</title>
+<style>
+  @media screen and (max-width: 480px) {
+    .ayo-card { width: 100% !important; border-radius: 0 !important; }
+    .ayo-h    { padding: 28px 22px 20px !important; }
+    .ayo-body { padding: 28px 22px !important; }
+    .ayo-foot { padding: 24px 22px !important; }
+    .ayo-p    { font-size: 15px !important; line-height: 1.7 !important; }
+  }
+</style>
+</head>
 <body style="margin:0;padding:0;background:${BRAND.dark};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.dark};padding:40px 20px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.dark};padding:40px 16px;">
 <tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="background:#111;border-radius:12px;overflow:hidden;border:1px solid #222;">
+<table role="presentation" class="ayo-card" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#111;border-radius:12px;overflow:hidden;border:1px solid #222;">
   <!-- Header -->
-  <tr><td style="padding:32px 40px 24px;border-bottom:1px solid #222;">
-    <span style="font-size:22px;font-weight:700;color:${BRAND.gold};">African Youth Observatory</span>
+  <tr><td class="ayo-h" style="padding:40px 44px 28px;border-bottom:1px solid #222;">
+    <span style="font-size:22px;font-weight:700;color:${BRAND.gold};letter-spacing:-0.01em;">African Youth Observatory</span>
   </td></tr>
   <!-- Body -->
-  <tr><td style="padding:32px 40px;">
+  <tr><td class="ayo-body" style="padding:40px 44px;">
     ${body}
   </td></tr>
   <!-- Footer -->
-  <tr><td style="padding:24px 40px;border-top:1px solid #222;text-align:center;">
-    <p style="color:#666;font-size:12px;margin:0;">PACSDA &mdash; Pan-African Centre for Statistics and Data Analytics</p>
-    <p style="color:#555;font-size:11px;margin:8px 0 0;">
+  <tr><td class="ayo-foot" style="padding:28px 44px;border-top:1px solid #222;text-align:center;">
+    <p style="color:#888;font-size:12px;line-height:1.6;margin:0;">PACSDA &mdash; Pan African Centre for Social Development and Accountability</p>
+    <p style="color:#666;font-size:11px;margin:10px 0 0;">
       <a href="https://africanyouthobservatory.org" style="color:${BRAND.gold};text-decoration:none;">africanyouthobservatory.org</a>
     </p>
   </td></tr>
@@ -43,7 +59,40 @@ function btn(text: string, href: string): string {
 }
 
 function p(text: string): string {
-  return `<p style="color:#ccc;font-size:15px;line-height:1.6;margin:0 0 16px;">${text}</p>`;
+  // More vertical breathing room than before — old 16px/1.6 felt cramped,
+  // especially on mobile where the card runs full-bleed.
+  return `<p class="ayo-p" style="color:#d0d0d0;font-size:15px;line-height:1.75;margin:0 0 20px;">${text}</p>`;
+}
+
+// Minimal HTML escape for user-provided text inside attachment labels / URLs.
+function esc(s: string): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Renders the "Attached resources" block. We link to files rather than
+// attaching binaries — better deliverability and works for files of any size.
+function attachmentsBlock(
+  items?: Array<{ label: string; url: string; sizeHint?: string }> | null,
+): string {
+  if (!items || items.length === 0) return '';
+  const rows = items
+    .map(
+      (a) => `<li style="margin:0 0 10px;list-style:none;">
+        <a href="${esc(a.url)}" style="display:block;padding:14px 16px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:${BRAND.gold};text-decoration:none;font-weight:600;font-size:14px;">
+          ${esc(a.label)}
+          ${a.sizeHint ? `<span style="color:#777;font-weight:400;font-size:12px;margin-left:8px;">${esc(a.sizeHint)}</span>` : ''}
+        </a>
+      </li>`,
+    )
+    .join('');
+  return `<div style="margin-top:28px;padding-top:24px;border-top:1px solid #222;">
+    <p style="color:#bbb;font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;margin:0 0 14px;">Attached resources</p>
+    <ul style="margin:0;padding:0;">${rows}</ul>
+  </div>`;
 }
 
 @Injectable()
@@ -61,7 +110,7 @@ export class MailService {
     } else {
       this.logger.warn('RESEND_API_KEY not set — email sending disabled');
     }
-    this.from = process.env.FROM_EMAIL || 'AYD Platform <noreply@pacsda.org>';
+    this.from = process.env.FROM_EMAIL || 'African Youth Observatory <noreply@pacsda.org>';
     this.adminEmail = process.env.ADMIN_EMAIL || 'admin@africanyouthobservatory.org';
   }
 
@@ -260,24 +309,52 @@ export class MailService {
   // renderBriefing is reused by the admin preview endpoint so what an admin
   // approves is byte-for-byte what subscribers receive.
 
-  renderBriefing(subject: string, innerHtml: string, unsubscribeUrl: string): string {
-    return layout(subject, `
-      ${innerHtml}
-      <div style="margin-top:28px;padding-top:16px;border-top:1px solid #222;">
-        <p style="color:#666;font-size:12px;line-height:1.6;margin:0;">
-          You're receiving this because you subscribed to African Youth Observatory
-          monthly briefings. <a href="${unsubscribeUrl}" style="color:${BRAND.gold};text-decoration:none;">Unsubscribe</a>.
-        </p>
+  renderBriefing(opts: {
+    subject: string;
+    innerHtml: string;
+    /** Per-recipient unsubscribe URL (subscribers). Pass null for USERS audience. */
+    unsubscribeUrl?: string | null;
+    /** Affects the footer wording. Defaults to 'subscriber'. */
+    audienceKind?: 'subscriber' | 'user';
+    attachments?: Array<{ label: string; url: string; sizeHint?: string }> | null;
+  }): string {
+    const kind = opts.audienceKind ?? 'subscriber';
+    const platformUrl = process.env.FRONTEND_URL || 'https://africanyouthobservatory.org';
+    const footer =
+      kind === 'user'
+        ? `<p style="color:#777;font-size:12px;line-height:1.7;margin:0;">
+            You're receiving this because you're a registered user of the African Youth
+            Observatory. Manage your account at
+            <a href="${platformUrl}" style="color:${BRAND.gold};text-decoration:none;">africanyouthobservatory.org</a>.
+          </p>`
+        : `<p style="color:#777;font-size:12px;line-height:1.7;margin:0;">
+            You're receiving this because you subscribed to African Youth Observatory
+            monthly briefings.
+            ${opts.unsubscribeUrl ? `<a href="${opts.unsubscribeUrl}" style="color:${BRAND.gold};text-decoration:none;">Unsubscribe</a>.` : ''}
+          </p>`;
+
+    return layout(opts.subject, `
+      ${opts.innerHtml}
+      ${attachmentsBlock(opts.attachments)}
+      <div style="margin-top:32px;padding-top:20px;border-top:1px solid #222;">
+        ${footer}
       </div>
     `);
   }
 
-  async sendBriefing(to: string, subject: string, innerHtml: string, unsubscribeUrl: string) {
+  async sendBriefing(opts: {
+    to: string;
+    subject: string;
+    innerHtml: string;
+    unsubscribeUrl?: string | null;
+    audienceKind?: 'subscriber' | 'user';
+    attachments?: Array<{ label: string; url: string; sizeHint?: string }> | null;
+  }) {
     if (!this.resend) {
       this.logger.warn('Briefing not sent — Resend not configured');
       throw new Error('Email service not configured (RESEND_API_KEY missing)');
     }
-    return this.send(to, subject, this.renderBriefing(subject, innerHtml, unsubscribeUrl));
+    return this.send(opts.to, opts.subject, this.renderBriefing(opts));
   }
 
   /** True when Resend is wired up — lets callers fail fast before a broadcast. */

@@ -373,7 +373,7 @@ const Landing = () => {
               <Content
                 as="span"
                 id="landing.footer.copyright"
-                fallback="© 2025 African Youth Observatory. Powered by PACSDA & ZeroUp Next."
+                fallback="© 2026 African Youth Observatory. Powered by PACSDA & ZeroUp Next."
                 className="text-sm text-muted-foreground"
               />
             </div>

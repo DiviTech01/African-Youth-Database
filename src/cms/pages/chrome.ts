@@ -45,7 +45,7 @@ export const chromeEntries: CmsRegistryEntry[] = [
   { key: 'footer.newsletter.submit', page: FOOTER, section: 'newsletter', contentType: 'TEXT', defaultContent: 'Subscribe' },
 
   // Footer — bottom
-  { key: 'footer.copyright', page: FOOTER, section: 'bottom', contentType: 'TEXT', defaultContent: '© 2025 African Youth Statistics Database. All rights reserved.' },
+  { key: 'footer.copyright', page: FOOTER, section: 'bottom', contentType: 'TEXT', defaultContent: '© 2026 African Youth Observatory. All rights reserved.' },
   { key: 'footer.legal.privacy', page: FOOTER, section: 'bottom', contentType: 'TEXT', defaultContent: 'Privacy Policy' },
   { key: 'footer.legal.terms', page: FOOTER, section: 'bottom', contentType: 'TEXT', defaultContent: 'Terms of Service' },
 

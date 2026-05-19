@@ -29,15 +29,36 @@ const mail = new MailService();
 console.log('MailService — no API key:');
 check('isConfigured is false without RESEND_API_KEY', mail.isConfigured === false);
 
-console.log('renderBriefing:');
+console.log('renderBriefing (subscriber audience):');
 const unsub = 'https://african-youth-observatory.onrender.com/api/newsletter/unsubscribe?token=abc123';
-const html = mail.renderBriefing('May 2026 Briefing', '<p>Hello youth data</p>', unsub);
-check('returns a full HTML document', html.startsWith('<!DOCTYPE html>'));
-check('contains the subject', html.includes('May 2026 Briefing'));
-check('contains the body', html.includes('<p>Hello youth data</p>'));
-check('embeds the exact unsubscribe URL', html.includes(unsub));
-check('has an Unsubscribe link label', html.includes('Unsubscribe'));
-check('keeps the AYO brand header', html.includes('African Youth Observatory'));
+const subHtml = mail.renderBriefing({
+  subject: 'May 2026 Briefing',
+  innerHtml: '<p>Hello youth data</p>',
+  unsubscribeUrl: unsub,
+  audienceKind: 'subscriber',
+  attachments: [{ label: 'Youth Index 2026', url: 'https://example.com/yi-2026.pdf', sizeHint: '4 MB · PDF' }],
+});
+check('returns a full HTML document', subHtml.startsWith('<!DOCTYPE html>'));
+check('contains the subject', subHtml.includes('May 2026 Briefing'));
+check('contains the body', subHtml.includes('<p>Hello youth data</p>'));
+check('embeds the exact unsubscribe URL', subHtml.includes(unsub));
+check('has an Unsubscribe link label', subHtml.includes('Unsubscribe'));
+check('keeps the AYO brand header', subHtml.includes('African Youth Observatory'));
+check('updated PACSDA expansion in footer', subHtml.includes('Pan African Centre for Social Development and Accountability'));
+check('does not mention "AYD Platform"', !subHtml.includes('AYD Platform'));
+check('renders attachment label', subHtml.includes('Youth Index 2026'));
+check('renders attachment URL', subHtml.includes('https://example.com/yi-2026.pdf'));
+check('mobile-responsive style block present', subHtml.includes('@media screen and (max-width: 480px)'));
+
+console.log('renderBriefing (user audience):');
+const userHtml = mail.renderBriefing({
+  subject: 'Platform announcement',
+  innerHtml: '<p>Big news</p>',
+  audienceKind: 'user',
+  unsubscribeUrl: null,
+});
+check('user-footer wording present', userHtml.includes("you're a registered user"));
+check('no Unsubscribe link in user-audience footer', !userHtml.includes('Unsubscribe</a>'));
 
 console.log('periodKey idempotency:');
 const key = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;

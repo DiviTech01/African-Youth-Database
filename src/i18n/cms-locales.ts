@@ -49,7 +49,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'footer.newsletter.placeholder': 'Votre e-mail',
     'footer.newsletter.submit': "S'abonner",
     // Footer — bottom
-    'footer.copyright': '© 2025 Base de Données Statistiques de la Jeunesse Africaine. Tous droits réservés.',
+    'footer.copyright': '© 2026 Observatoire de la Jeunesse Africaine. Tous droits réservés.',
     'footer.legal.privacy': 'Politique de confidentialité',
     'footer.legal.terms': "Conditions d'utilisation",
     // Cookie consent
@@ -86,7 +86,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.featured.explore_cta': 'Explorer',
     'home.featured.view_all': 'Voir tous les rapports',
     // Home — partners
-    'home.partners.heading': 'Sources de données',
+    'home.partners.heading': 'Nos partenaires',
 
     // ── Landing ─────────────────────────────────────────────────────────────
     'landing.brand.name': 'African Youth Observatory',
@@ -120,7 +120,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'landing.bottom_cta.description': 'Rejoignez les chercheurs, décideurs et organisations qui utilisent AYD pour générer un changement significatif sur le continent.',
     'landing.bottom_cta.primary': 'Créer un compte gratuit',
     'landing.bottom_cta.secondary': 'En savoir plus sur AYD',
-    'landing.footer.copyright': '© 2025 African Youth Observatory. Propulsé par PACSDA et ZeroUp Next.',
+    'landing.footer.copyright': '© 2026 African Youth Observatory. Propulsé par PACSDA et ZeroUp Next.',
     'landing.footer.link_about': 'À propos',
     'landing.footer.link_contact': 'Contact',
     'landing.footer.link_privacy': 'Confidentialité',
@@ -418,7 +418,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'footer.newsletter.placeholder': 'بريدك الإلكتروني',
     'footer.newsletter.submit': 'اشترك',
     // Footer — bottom
-    'footer.copyright': '© 2025 قاعدة بيانات إحصاءات الشباب الأفريقي. جميع الحقوق محفوظة.',
+    'footer.copyright': '© 2026 مرصد الشباب الأفريقي. جميع الحقوق محفوظة.',
     'footer.legal.privacy': 'سياسة الخصوصية',
     'footer.legal.terms': 'شروط الخدمة',
     // Cookie consent
@@ -455,7 +455,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.featured.explore_cta': 'استكشف',
     'home.featured.view_all': 'عرض جميع التقارير',
     // Home — partners
-    'home.partners.heading': 'مصادر البيانات',
+    'home.partners.heading': 'شركاؤنا',
 
     // ── Landing ─────────────────────────────────────────────────────────────
     'landing.brand.name': 'African Youth Observatory',
@@ -489,7 +489,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'landing.bottom_cta.description': 'انضم إلى الباحثين وصنّاع السياسات والمؤسسات الذين يستخدمون AYD لإحداث تغيير حقيقي عبر القارة.',
     'landing.bottom_cta.primary': 'أنشئ حسابًا مجانيًا',
     'landing.bottom_cta.secondary': 'اعرف المزيد عن AYD',
-    'landing.footer.copyright': '© 2025 African Youth Observatory. مدعوم من PACSDA وZeroUp Next.',
+    'landing.footer.copyright': '© 2026 African Youth Observatory. مدعوم من PACSDA وZeroUp Next.',
     'landing.footer.link_about': 'حول',
     'landing.footer.link_contact': 'اتصل',
     'landing.footer.link_privacy': 'الخصوصية',
@@ -787,7 +787,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'footer.newsletter.placeholder': 'O seu e-mail',
     'footer.newsletter.submit': 'Subscrever',
     // Footer — bottom
-    'footer.copyright': '© 2025 Base de Dados Estatísticos da Juventude Africana. Todos os direitos reservados.',
+    'footer.copyright': '© 2026 Observatório da Juventude Africana. Todos os direitos reservados.',
     'footer.legal.privacy': 'Política de Privacidade',
     'footer.legal.terms': 'Termos de Serviço',
     // Cookie consent
@@ -824,7 +824,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.featured.explore_cta': 'Explorar',
     'home.featured.view_all': 'Ver todos os relatórios',
     // Home — partners
-    'home.partners.heading': 'Fontes de dados',
+    'home.partners.heading': 'Os nossos parceiros',
 
     // ── Landing ─────────────────────────────────────────────────────────────
     'landing.brand.name': 'African Youth Observatory',
@@ -858,7 +858,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'landing.bottom_cta.description': 'Junte-se a investigadores, decisores políticos e organizações que usam o AYD para gerar mudanças significativas no continente.',
     'landing.bottom_cta.primary': 'Criar conta gratuita',
     'landing.bottom_cta.secondary': 'Saber mais sobre o AYD',
-    'landing.footer.copyright': '© 2025 African Youth Observatory. Desenvolvido pela PACSDA e ZeroUp Next.',
+    'landing.footer.copyright': '© 2026 African Youth Observatory. Desenvolvido pela PACSDA e ZeroUp Next.',
     'landing.footer.link_about': 'Sobre',
     'landing.footer.link_contact': 'Contacto',
     'landing.footer.link_privacy': 'Privacidade',
@@ -1156,7 +1156,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'footer.newsletter.placeholder': 'Barua pepe yako',
     'footer.newsletter.submit': 'Jisajili',
     // Footer — bottom
-    'footer.copyright': '© 2025 Hifadhidata ya Takwimu za Vijana wa Afrika. Haki zote zimehifadhiwa.',
+    'footer.copyright': '© 2026 Kituo cha Uangalizi cha Vijana wa Afrika. Haki zote zimehifadhiwa.',
     'footer.legal.privacy': 'Sera ya Faragha',
     'footer.legal.terms': 'Masharti ya Huduma',
     // Cookie consent
@@ -1193,7 +1193,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.featured.explore_cta': 'Chunguza',
     'home.featured.view_all': 'Tazama ripoti zote',
     // Home — partners
-    'home.partners.heading': 'Vyanzo vya data',
+    'home.partners.heading': 'Washirika wetu',
 
     // ── Landing ─────────────────────────────────────────────────────────────
     'landing.brand.name': 'African Youth Observatory',
@@ -1227,7 +1227,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'landing.bottom_cta.description': 'Jiunge na watafiti, watunga sera na mashirika wanaotumia AYD kuleta mabadiliko yenye maana barani.',
     'landing.bottom_cta.primary': 'Fungua akaunti bila malipo',
     'landing.bottom_cta.secondary': 'Jifunze zaidi kuhusu AYD',
-    'landing.footer.copyright': '© 2025 African Youth Observatory. Inaendeshwa na PACSDA na ZeroUp Next.',
+    'landing.footer.copyright': '© 2026 African Youth Observatory. Inaendeshwa na PACSDA na ZeroUp Next.',
     'landing.footer.link_about': 'Kuhusu',
     'landing.footer.link_contact': 'Mawasiliano',
     'landing.footer.link_privacy': 'Faragha',

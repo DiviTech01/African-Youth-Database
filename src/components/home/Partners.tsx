@@ -57,7 +57,7 @@ const partnerLogos = [
 ];
 
 const Partners = () => {
-  const heading = useContentText('home.partners.heading', 'Data Sources');
+  const heading = useContentText('home.partners.heading', 'Our Partners');
   return <Logos3 heading={heading} logos={partnerLogos} />;
 };
 

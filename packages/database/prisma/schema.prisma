@@ -503,6 +503,15 @@ model NewsletterCampaign {
   subject        String                              // email subject line
   bodyHtml       String                              // inner HTML body (wrapped in branded layout on send)
   status         NewsletterCampaignStatus @default(DRAFT)
+  // Who receives this campaign: the public newsletter list, every registered
+  // platform user, or both (deduped). Defaults to SUBSCRIBERS to match the
+  // original monthly-briefing flow.
+  audience       NewsletterAudience       @default(SUBSCRIBERS)
+  // Optional download links rendered as an "Attached resources" section at
+  // the bottom of the email. Shape: [{ label: string, url: string, sizeHint?: string }].
+  // We link rather than attach binaries — better deliverability and works
+  // for files of any size (PDFs, reports) hosted on R2 or anywhere public.
+  attachments    Json?
   createdById    String?
   approvedById   String?
   recipientCount Int                      @default(0)
@@ -527,4 +536,10 @@ enum NewsletterCampaignStatus {
   SENT              // delivered to the list
   FAILED            // send aborted with an error
   CANCELLED         // admin discarded it
+}
+
+enum NewsletterAudience {
+  SUBSCRIBERS // people who signed up via the newsletter form
+  USERS       // every registered platform user (User table)
+  BOTH        // union of the above, deduped by email
 }

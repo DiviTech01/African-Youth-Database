@@ -19,10 +19,10 @@ interface JwtPayload {
 type PemMap = Map<string, string>;
 const KID_CACHE: { keys: PemMap; expiresAt: number } = { keys: new Map(), expiresAt: 0 };
 
-function fetchJwks(jwksUrl: string): Promise<PemMap> {
+function fetchJwksOnce(jwksUrl: string, opts: https.RequestOptions = {}): Promise<PemMap> {
   return new Promise((resolve, reject) => {
     https
-      .get(jwksUrl, (res) => {
+      .get(jwksUrl, opts, (res) => {
         const chunks: Buffer[] = [];
         res.on('data', (c) => chunks.push(c));
         res.on('end', () => {
@@ -49,6 +49,33 @@ function fetchJwks(jwksUrl: string): Promise<PemMap> {
       })
       .on('error', reject);
   });
+}
+
+// Dev machines (notably Node on Windows) sometimes can't validate Supabase's
+// TLS cert because Node doesn't trust the system root CA store — the fetch
+// then fails with "unable to verify the first certificate" and every admin
+// request 401s. We retry with rejectUnauthorized=false ONLY on that specific
+// cert error, and ONLY outside production. JWKS keys are public so the worst
+// case is fetching public keys over an unvalidated channel; tokens are still
+// validated afterwards. In production the first attempt always succeeds.
+async function fetchJwks(jwksUrl: string): Promise<PemMap> {
+  try {
+    return await fetchJwksOnce(jwksUrl);
+  } catch (err) {
+    const msg = (err as NodeJS.ErrnoException)?.message || '';
+    const isCertError =
+      /unable to verify the first certificate|self.?signed certificate|UNABLE_TO_VERIFY_LEAF_SIGNATURE|CERT_/i.test(
+        msg,
+      );
+    if (isCertError && process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[JwtStrategy] JWKS TLS validation failed — retrying with rejectUnauthorized=false (dev only). ' +
+          'For a permanent fix, run Node with --use-system-ca or install the missing root CA.',
+      );
+      return fetchJwksOnce(jwksUrl, { rejectUnauthorized: false } as https.RequestOptions);
+    }
+    throw err;
+  }
 }
 
 async function getKeyForKid(jwksUrl: string, kid: string): Promise<string | null> {
