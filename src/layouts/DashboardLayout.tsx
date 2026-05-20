@@ -26,10 +26,12 @@ import {
   Maximize2,
   Minimize2,
   Command as CommandIcon,
+  Eye,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminDensity } from '@/hooks/use-admin-density';
+import { useAdminPreviewMode } from '@/hooks/use-admin-preview-mode';
 import { AdminCommandPalette } from '@/components/admin/AdminCommandPalette';
 
 /**
@@ -126,11 +128,31 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const isAdmin = user?.role === 'ADMIN';
   const isContributor = user?.role === 'CONTRIBUTOR';
-  // When the admin is inside /admin/*, the sidebar collapses down to admin-only
-  // nav so the dashboard doesn't double as the public-app launcher. They can
-  // jump back via the "Back to platform" link.
   const isAdminRoute = location.pathname.startsWith('/admin');
   const { density, toggle: toggleDensity } = useAdminDensity();
+  const { previewMode, setPreviewMode } = useAdminPreviewMode();
+
+  // Admin sidebar mode: when an admin signs in, the sidebar is admin-only
+  // (admin + contributor sections — NO mixed-in user nav). They can flip the
+  // whole sidebar to the user-facing nav with "Preview as user" and flip it
+  // back with "Exit preview". Hitting an /admin/* URL auto-exits preview so
+  // the admin section can be shown again.
+  const inAdminMode = !!isAdmin && !previewMode;
+  const inPreviewMode = !!isAdmin && previewMode;
+  React.useEffect(() => {
+    if (previewMode && isAdminRoute) setPreviewMode(false);
+  }, [previewMode, isAdminRoute, setPreviewMode]);
+
+  const enterPreview = () => {
+    setPreviewMode(true);
+    setSidebarOpen(false);
+    navigate('/dashboard');
+  };
+  const exitPreview = () => {
+    setPreviewMode(false);
+    setSidebarOpen(false);
+    navigate('/admin');
+  };
 
   const handleSignOut = () => {
     signOut();
@@ -212,36 +234,79 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </div>
 
       <nav className="flex-1 p-3 overflow-y-auto space-y-4">
-        {isAdminRoute && isAdmin ? (
-          <div>
-            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-400/60">
-              Administration
-            </p>
-            <div className="space-y-0.5">
-              {adminLinks.map((link) => (
-                <NavLink key={link.to} {...link} accent />
-              ))}
-            </div>
-            <div className="mt-4 pt-3 border-t border-border">
-              <NavLink to="/dashboard" label="Back to platform" icon={ArrowLeft} />
-            </div>
-          </div>
-        ) : (
+        {inAdminMode ? (
+          // Admin mode: admin + contributor sections only. No user nav.
           <>
-            {isAdmin && (
-              <div>
-                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-400/60">
-                  Administration
-                </p>
-                <div className="space-y-0.5">
-                  {adminLinks.map((link) => (
-                    <NavLink key={link.to} {...link} accent />
-                  ))}
-                </div>
+            <div>
+              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-400/60">
+                Administration
+              </p>
+              <div className="space-y-0.5">
+                {adminLinks.map((link) => (
+                  <NavLink key={link.to} {...link} accent />
+                ))}
               </div>
-            )}
-
-            {(isContributor || isAdmin) && (
+            </div>
+            <div>
+              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400/60">
+                Contributor
+              </p>
+              <div className="space-y-0.5">
+                {contributorLinks.map((link) => (
+                  <NavLink key={link.to} {...link} />
+                ))}
+              </div>
+            </div>
+            <div className="mt-2 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={enterPreview}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                title="See the platform as a regular user"
+              >
+                <Eye className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Preview as user</span>
+              </button>
+            </div>
+          </>
+        ) : inPreviewMode ? (
+          // Preview mode: user-facing nav, no admin section.
+          <>
+            <div>
+              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400/60">
+                Contributor
+              </p>
+              <div className="space-y-0.5">
+                {contributorLinks.map((link) => (
+                  <NavLink key={link.to} {...link} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                Data &amp; Analytics
+              </p>
+              <div className="space-y-0.5">
+                {dataLinks.map((link) => (
+                  <NavLink key={link.to} {...link} />
+                ))}
+              </div>
+            </div>
+            <div className="mt-2 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={exitPreview}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">Exit preview</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          // Non-admin (regular user / contributor / guest): existing nav.
+          <>
+            {isContributor && (
               <div>
                 <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400/60">
                   Contributor
@@ -253,9 +318,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </div>
               </div>
             )}
-
             <div>
-              {(isAdmin || isContributor) && (
+              {isContributor && (
                 <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
                   Data &amp; Analytics
                 </p>
@@ -360,40 +424,89 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </div>
 
       <nav className="flex-1 p-3 overflow-y-auto space-y-4">
-        {isAdminRoute && isAdmin ? (
-          <div>
-            {!collapsed && (
-              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-400/60">
-                Administration
-              </p>
-            )}
-            <div className="space-y-0.5">
-              {adminLinks.map((link) => (
-                <NavLink key={link.to} {...link} accent isCollapsed={collapsed} />
-              ))}
+        {inAdminMode ? (
+          <>
+            <div>
+              {!collapsed && (
+                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-400/60">
+                  Administration
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {adminLinks.map((link) => (
+                  <NavLink key={link.to} {...link} accent isCollapsed={collapsed} />
+                ))}
+              </div>
             </div>
-            <div className="mt-4 pt-3 border-t border-border">
-              <NavLink to="/dashboard" label="Back to platform" icon={ArrowLeft} isCollapsed={collapsed} />
+            <div>
+              {!collapsed && (
+                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400/60">
+                  Contributor
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {contributorLinks.map((link) => (
+                  <NavLink key={link.to} {...link} isCollapsed={collapsed} />
+                ))}
+              </div>
             </div>
-          </div>
+            <div className="mt-2 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={enterPreview}
+                title={collapsed ? 'Preview as user' : undefined}
+                className={`w-full flex items-center gap-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${
+                  collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
+                }`}
+              >
+                <Eye className="h-4 w-4 flex-shrink-0" />
+                {!collapsed && <span className="truncate">Preview as user</span>}
+              </button>
+            </div>
+          </>
+        ) : inPreviewMode ? (
+          <>
+            <div>
+              {!collapsed && (
+                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400/60">
+                  Contributor
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {contributorLinks.map((link) => (
+                  <NavLink key={link.to} {...link} isCollapsed={collapsed} />
+                ))}
+              </div>
+            </div>
+            <div>
+              {!collapsed && (
+                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                  Data &amp; Analytics
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {dataLinks.map((link) => (
+                  <NavLink key={link.to} {...link} isCollapsed={collapsed} />
+                ))}
+              </div>
+            </div>
+            <div className="mt-2 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={exitPreview}
+                title={collapsed ? 'Exit preview' : undefined}
+                className={`w-full flex items-center gap-3 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors ${
+                  collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
+                }`}
+              >
+                <ArrowLeft className="h-4 w-4 flex-shrink-0" />
+                {!collapsed && <span className="truncate">Exit preview</span>}
+              </button>
+            </div>
+          </>
         ) : (
           <>
-            {isAdmin && (
-              <div>
-                {!collapsed && (
-                  <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-400/60">
-                    Administration
-                  </p>
-                )}
-                <div className="space-y-0.5">
-                  {adminLinks.map((link) => (
-                    <NavLink key={link.to} {...link} accent isCollapsed={collapsed} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {(isContributor || isAdmin) && (
+            {isContributor && (
               <div>
                 {!collapsed && (
                   <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400/60">
@@ -407,9 +520,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </div>
               </div>
             )}
-
             <div>
-              {!collapsed && (isAdmin || isContributor) && (
+              {!collapsed && isContributor && (
                 <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
                   Data &amp; Analytics
                 </p>
@@ -663,6 +775,26 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         {/* First-visit nav hint — subtle banner that helps mobile users discover the
             menu trigger. Auto-dismisses after one menu open or via the X button. */}
         <NavHintBanner active={!sidebarOpen} />
+
+        {/* Preview-mode banner: always visible across every page when an
+            admin is browsing as a regular user. Gives them an unmissable
+            one-click route back to the admin console. */}
+        {inPreviewMode && (
+          <div className="flex items-center justify-between gap-3 px-3 sm:px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-xs">
+            <span className="text-red-300 flex items-center gap-1.5 min-w-0">
+              <Eye className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Preview mode — you're viewing the platform as a regular user.</span>
+            </span>
+            <button
+              type="button"
+              onClick={exitPreview}
+              className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-500/25 hover:bg-red-500/35 text-red-200 hover:text-red-100 font-medium transition-colors"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              Exit preview
+            </button>
+          </div>
+        )}
 
         {/* Page Content — admin pages honour the density preference. */}
         <main

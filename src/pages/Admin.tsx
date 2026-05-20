@@ -21,6 +21,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { getAdminReports } from '@/services/adminContent';
+import { useAdminPreviewMode } from '@/hooks/use-admin-preview-mode';
+import { useNavigate } from 'react-router-dom';
 
 type UserRole = 'PUBLIC' | 'REGISTERED' | 'RESEARCHER' | 'CONTRIBUTOR' | 'INSTITUTIONAL' | 'ADMIN';
 
@@ -54,6 +56,9 @@ const Admin = () => {
   const { getToken } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const { setPreviewMode } = useAdminPreviewMode();
+  const startPreview = () => { setPreviewMode(true); navigate('/dashboard'); };
   const [pendingRoles, setPendingRoles] = useState<Record<string, UserRole>>({});
 
   // Platform stats
@@ -150,10 +155,14 @@ const Admin = () => {
           {!platformStats && <Badge variant="secondary" className="text-[10px]">Offline mode</Badge>}
           {/* Let admins drop into the regular user dashboard for a sanity-check
               of what visitors see, without losing their way back. */}
-          <Button asChild variant="outline" size="sm" className="gap-1.5 h-8 text-xs">
-            <Link to="/dashboard" title="See the platform as a regular user">
-              <Eye className="h-3.5 w-3.5" /> View as user
-            </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-8 text-xs"
+            onClick={startPreview}
+            title="See the platform as a regular user — a banner will offer Exit preview on every page"
+          >
+            <Eye className="h-3.5 w-3.5" /> View as user
           </Button>
         </div>
       </div>
