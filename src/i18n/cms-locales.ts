@@ -86,7 +86,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.featured.explore_cta': 'Explorer',
     'home.featured.view_all': 'Voir tous les rapports',
     // Home — partners
-    'home.partners.heading': 'Nos partenaires',
+    'home.partners.heading': 'Sources de données',
 
     // ── Landing ─────────────────────────────────────────────────────────────
     'landing.brand.name': 'African Youth Observatory',
@@ -455,7 +455,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.featured.explore_cta': 'استكشف',
     'home.featured.view_all': 'عرض جميع التقارير',
     // Home — partners
-    'home.partners.heading': 'شركاؤنا',
+    'home.partners.heading': 'مصادر البيانات',
 
     // ── Landing ─────────────────────────────────────────────────────────────
     'landing.brand.name': 'African Youth Observatory',
@@ -824,7 +824,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.featured.explore_cta': 'Explorar',
     'home.featured.view_all': 'Ver todos os relatórios',
     // Home — partners
-    'home.partners.heading': 'Os nossos parceiros',
+    'home.partners.heading': 'Fontes de dados',
 
     // ── Landing ─────────────────────────────────────────────────────────────
     'landing.brand.name': 'African Youth Observatory',
@@ -1193,7 +1193,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.featured.explore_cta': 'Chunguza',
     'home.featured.view_all': 'Tazama ripoti zote',
     // Home — partners
-    'home.partners.heading': 'Washirika wetu',
+    'home.partners.heading': 'Vyanzo vya data',
 
     // ── Landing ─────────────────────────────────────────────────────────────
     'landing.brand.name': 'African Youth Observatory',

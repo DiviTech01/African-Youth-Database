@@ -294,12 +294,10 @@ const Dashboard = () => {
   const [hydrated, setHydrated] = useState(false);
   const [savedRecently, setSavedRecently] = useState(false);
 
-  // Redirect admin users to the admin panel
-  useEffect(() => {
-    if (!isLoading && user?.role === 'ADMIN') {
-      navigate('/admin', { replace: true });
-    }
-  }, [user, isLoading, navigate]);
+  // Admins can view the dashboard like any other user — they reach /admin
+  // via the sidebar's Administration section. (Previously we force-redirected
+  // every admin away from /dashboard which left them with a flash of blank
+  // screen and no way back to the dashboard view.)
 
   // Hydrate widgets from localStorage on mount.
   // - If v2 exists, use it (user's saved layout).

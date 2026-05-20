@@ -1,22 +1,18 @@
-/** The CMS DB still serves "Our Partners & Data Sources" for
- *  `home.partners.heading` even though the registry now says "Our Partners".
- *  cms:sync doesn't overwrite existing rows, so the DB drifts. Update both
- *  defaultContent and any Draft/Published overrides directly. Idempotent. */
+/** Set the CMS partners heading to a specific value (matches the registry).
+ *  Idempotent. Pass the desired value as argv[2] if you want to override. */
 import { PrismaClient } from '@prisma/client';
+
+const TARGET = process.argv[2] || 'Data Sources';
 
 (async () => {
   const prisma = new PrismaClient();
   const KEY = 'home.partners.heading';
-  const NEW = 'Our Partners';
-  const isStale = (s: string | undefined | null) =>
-    !!s && /Data Sources|Our Partners & Data Sources/i.test(s);
-
   const entry = await prisma.contentEntry.findUnique({
     where: { key: KEY },
     include: { draft: true, published: true },
   });
   if (!entry) {
-    console.log(`No ContentEntry for ${KEY} — nothing to update.`);
+    console.log(`No ContentEntry for ${KEY}.`);
     await prisma.$disconnect();
     return;
   }
@@ -25,26 +21,17 @@ import { PrismaClient } from '@prisma/client';
   console.log('  draft         :', entry.draft?.content ?? '(none)');
   console.log('  published     :', entry.published?.content ?? '(none)');
 
-  if (isStale(entry.defaultContent)) {
-    await prisma.contentEntry.update({ where: { key: KEY }, data: { defaultContent: NEW } });
-    console.log('  → defaultContent updated');
+  if (entry.defaultContent !== TARGET) {
+    await prisma.contentEntry.update({ where: { key: KEY }, data: { defaultContent: TARGET } });
+    console.log(`  → defaultContent set to "${TARGET}"`);
   }
-  if (entry.draft && isStale(entry.draft.content)) {
-    await prisma.contentDraft.update({ where: { entryId: entry.id }, data: { content: NEW } });
-    console.log('  → draft updated');
+  if (entry.draft && entry.draft.content !== TARGET) {
+    await prisma.contentDraft.update({ where: { entryId: entry.id }, data: { content: TARGET } });
+    console.log(`  → draft set to "${TARGET}"`);
   }
-  if (entry.published && isStale(entry.published.content)) {
-    await prisma.contentPublished.update({ where: { entryId: entry.id }, data: { content: NEW } });
-    console.log('  → published updated');
+  if (entry.published && entry.published.content !== TARGET) {
+    await prisma.contentPublished.update({ where: { entryId: entry.id }, data: { content: TARGET } });
+    console.log(`  → published set to "${TARGET}"`);
   }
-
-  const after = await prisma.contentEntry.findUnique({
-    where: { key: KEY },
-    include: { draft: true, published: true },
-  });
-  console.log('After:');
-  console.log('  defaultContent:', after?.defaultContent);
-  console.log('  draft         :', after?.draft?.content ?? '(none)');
-  console.log('  published     :', after?.published?.content ?? '(none)');
   await prisma.$disconnect();
 })();

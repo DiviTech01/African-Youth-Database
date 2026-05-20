@@ -36,5 +36,5 @@ export const homeEntries: CmsRegistryEntry[] = [
   { key: 'home.featured.view_all', page: PAGE, section: 'featured', contentType: 'TEXT', defaultContent: 'View All Reports' },
 
   // Partners
-  { key: 'home.partners.heading', page: PAGE, section: 'partners', contentType: 'TEXT', defaultContent: 'Our Partners' },
+  { key: 'home.partners.heading', page: PAGE, section: 'partners', contentType: 'TEXT', defaultContent: 'Data Sources' },
 ];
