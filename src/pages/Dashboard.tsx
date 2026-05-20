@@ -20,7 +20,7 @@ import {
 import {
   Plus, Save, Share2, Pencil, Trash2, Check,
   BarChart3, TrendingUp, AreaChart as AreaChartIcon, Radar as RadarIcon, Hash,
-  LayoutDashboard, Users, Star, Clock, Sparkles, ArrowRight,
+  LayoutDashboard, Users, Star, Clock, Sparkles, ArrowRight, Shield, ArrowLeft,
 } from 'lucide-react';
 import { useUserPreferences } from '@/contexts/UserPreferencesContext';
 import { useToast } from '@/hooks/use-toast';
@@ -449,8 +449,27 @@ const Dashboard = () => {
     });
   };
 
+  const isAdmin = user?.role === 'ADMIN';
+
   return (
     <div className="space-y-6">
+      {/* Admins land on /admin by default and reach this view via the
+          "View as user" button. We surface a small banner so they always have
+          a one-click route back to the admin console. */}
+      {isAdmin && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs">
+          <span className="text-red-300 flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5" />
+            You're viewing the dashboard as a regular user.
+          </span>
+          <Button asChild variant="outline" size="sm" className="h-7 gap-1.5 text-xs border-red-500/40 text-red-300 hover:bg-red-500/20 hover:text-red-200">
+            <Link to="/admin">
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to admin
+            </Link>
+          </Button>
+        </div>
+      )}
+
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">

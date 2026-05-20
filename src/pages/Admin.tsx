@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   Shield, Users, Globe, Database, Activity, Search, ArrowRight,
-  Upload, Trash2, FileText, CheckCircle, XCircle, Clock, UserCheck, Wrench, Mail,
+  Upload, Trash2, FileText, CheckCircle, XCircle, Clock, UserCheck, Wrench, Mail, Eye,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -146,7 +146,16 @@ const Admin = () => {
             <p className="text-xs text-[#A89070] mt-0.5">Users, content, data, and platform operations.</p>
           </div>
         </div>
-        {!platformStats && <Badge variant="secondary" className="text-[10px] self-start">Offline mode</Badge>}
+        <div className="flex items-center gap-2 self-start">
+          {!platformStats && <Badge variant="secondary" className="text-[10px]">Offline mode</Badge>}
+          {/* Let admins drop into the regular user dashboard for a sanity-check
+              of what visitors see, without losing their way back. */}
+          <Button asChild variant="outline" size="sm" className="gap-1.5 h-8 text-xs">
+            <Link to="/dashboard" title="See the platform as a regular user">
+              <Eye className="h-3.5 w-3.5" /> View as user
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-5">

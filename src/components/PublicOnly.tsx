@@ -2,7 +2,9 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Wrapper for routes that should only be visible to unauthenticated users
-// (landing page, sign in, sign up). Authenticated users get bounced to /dashboard.
+// (landing page, sign in, sign up). Authenticated users get bounced to their
+// natural home: admins land on /admin, everyone else on /dashboard. They can
+// still hop between via the "View as user" / "Back to admin" buttons.
 export function PublicOnly() {
   const { user, isLoading } = useAuth();
 
@@ -15,7 +17,7 @@ export function PublicOnly() {
   }
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={user.role === 'ADMIN' ? '/admin' : '/dashboard'} replace />;
   }
 
   return <Outlet />;
