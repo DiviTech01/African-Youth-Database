@@ -684,7 +684,7 @@ export class DataUploadService {
       );
     }
 
-    // Load AYD indicators.
+    // Load AYO indicators.
     const dbIndicators = await this.prisma.indicator.findMany({
       select: { id: true, slug: true, name: true, unit: true },
     });

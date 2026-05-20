@@ -3,7 +3,7 @@ import { AiContextService } from './ai-context.service';
 import { CacheService } from '../../common/cache.service';
 
 /**
- * AYD AI Intelligence Service — answers ANY question with full database access.
+ * AYO AI Intelligence Service — answers ANY question with full database access.
  * Uses Claude tool use to dynamically query data, with rule-based fallback.
  */
 @Injectable()
@@ -195,7 +195,7 @@ For stat cards: { data: [{ label: "Youth Unemployment", value: "14.1%", change: 
 For tables: { headers: ["Country", "Score", "Rank"], rows: [["Nigeria", "42.5", "35"], ...] }`
       : 'Do not include visualizations.';
 
-    return `You are the AI analyst for the African Youth Database (AYD), the most comprehensive data intelligence platform on African youth across all 54 nations.
+    return `You are the AI analyst for the African Youth Observatory (AYO), the most comprehensive data intelligence platform on African youth across all 54 nations.
 
 You have direct access to the platform's database through tools. Use them to fetch specific data to answer questions accurately.
 

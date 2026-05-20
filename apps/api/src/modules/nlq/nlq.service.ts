@@ -144,7 +144,7 @@ export class NlqService {
   }
 
   private async tryAiParse(question: string): Promise<ParsedQuery | null> {
-    const systemPrompt = `You are a query parser for the African Youth Database. The database contains youth-related indicators for 54 African countries, organized into 9 themes: Education, Employment & Entrepreneurship, Health, Civic Engagement & Governance, Innovation & Technology, Agriculture, Gender Equality, Financial Inclusion, Environment & Climate.
+    const systemPrompt = `You are a query parser for the African Youth Observatory. The database contains youth-related indicators for 54 African countries, organized into 9 themes: Education, Employment & Entrepreneurship, Health, Civic Engagement & Governance, Innovation & Technology, Agriculture, Gender Equality, Financial Inclusion, Environment & Climate.
 
 Given a user question, extract structured query parameters. Return ONLY valid JSON:
 

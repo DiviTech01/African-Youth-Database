@@ -30,8 +30,8 @@ const meth = (
 // ==== FAQ ====
 const faqPairs: Array<[string, string, string]> = [
   // platform
-  ['platform', 'q1', 'What is the African Youth Observatory (AYD)?'],
-  ['platform', 'q2', 'Who manages and maintains the AYD?'],
+  ['platform', 'q1', 'What is the African Youth Observatory (AYO)?'],
+  ['platform', 'q2', 'Who manages and maintains the AYO?'],
   ['platform', 'q3', 'How often is the data updated?'],
   ['platform', 'q4', 'Which countries are covered?'],
   // usage
@@ -47,16 +47,16 @@ const faqPairs: Array<[string, string, string]> = [
   // access
   ['access', 'q1', 'Is the platform free to use?'],
   ['access', 'q2', 'Do I need to create an account?'],
-  ['access', 'q3', 'Can I use AYD data in my research or publications?'],
+  ['access', 'q3', 'Can I use AYO data in my research or publications?'],
   ['access', 'q4', 'How can my organization contribute data?'],
 ];
 
 const faqAnswers: Record<string, Record<string, string>> = {
   platform: {
     q1: "The African Youth Observatory is Africa's most comprehensive youth data intelligence platform. It centralizes, analyzes, and visualizes youth-related statistics across all 54 African countries, covering population, education, health, employment, and entrepreneurship. Our mission is to power policy, research, innovation, and investment decisions with trusted, accessible data.",
-    q2: 'AYD is managed by PACSDA (Pan-African Centre for Statistics and Data Analytics) with implementation support from ZeroUp Next. We collaborate with national statistical offices, international organizations (UN agencies, World Bank, African Development Bank), and research institutions across Africa.',
+    q2: 'AYO is managed by PACSDA (Pan African Centre for Social Development and Accountability) with implementation support from ZeroUp Next. We collaborate with national statistical offices, international organizations (UN agencies, World Bank, African Development Bank), and research institutions across Africa.',
     q3: 'Data update frequency varies by indicator and source. Most core indicators are updated annually when new national or international survey data becomes available. Real-time indicators may be updated more frequently. Each dataset includes metadata showing the last update date and data vintage.',
-    q4: 'AYD covers all 54 African Union member states. Coverage depth varies by country and indicator based on data availability. We continuously work with national partners to expand coverage and improve data quality.',
+    q4: 'AYO covers all 54 African Union member states. Coverage depth varies by country and indicator based on data availability. We continuously work with national partners to expand coverage and improve data quality.',
   },
   usage: {
     q1: 'Use our Data Explorer to browse data by country, theme (Population, Education, Health, Employment, Entrepreneurship), indicator, year, gender, and age group. The interactive map allows you to click on countries to view their profiles. You can also use the Compare Countries feature to analyze up to 5 countries side by side.',
@@ -73,7 +73,7 @@ const faqAnswers: Record<string, Record<string, string>> = {
   access: {
     q1: 'Yes, core platform features are free for all users. This includes browsing dashboards, viewing visualizations, downloading standard datasets, and accessing the African Youth Index. Premium features (API access, custom dashboards, advanced analytics) require registration or subscription.',
     q2: 'No account is needed for basic browsing. However, registered users can: save custom dashboards, set up data alerts, access download history, use the API, and contribute datasets. Registration is free for researchers and institutions.',
-    q3: 'Yes! We encourage the use of AYD data for research, policy analysis, and journalism. Please cite the African Youth Observatory as your source and include a link to the specific dataset or page. For academic citations, use our suggested citation format available on each data page.',
+    q3: 'Yes! We encourage the use of AYO data for research, policy analysis, and journalism. Please cite the African Youth Observatory as your source and include a link to the specific dataset or page. For academic citations, use our suggested citation format available on each data page.',
     q4: 'We welcome data contributions from national statistical offices, research institutions, and development organizations. Contributors must: register through our Partner Portal, submit datasets with full metadata and methodology, undergo a verification review, and sign a data sharing agreement. Contributors receive attribution and impact metrics.',
   },
 };
@@ -101,8 +101,8 @@ const faqEntries: CmsRegistryEntry[] = [
 
 // ==== GLOSSARY ====
 const glossaryTerms: Array<[string, string, string]> = [
-  ['ayi', 'African Youth Index (AYI)', 'A composite indicator developed by AYD that ranks African countries based on youth development outcomes across education, employment, health, and civic engagement.'],
-  ['youth', 'Youth', "In the context of AYD, youth refers to individuals aged 15–35, consistent with the African Union definition codified in the African Youth Charter. The UN's narrower 15–24 band remains queryable on Explore for cross-reference."],
+  ['ayi', 'African Youth Index (AYI)', 'A composite indicator developed by AYO that ranks African countries based on youth development outcomes across education, employment, health, and civic engagement.'],
+  ['youth', 'Youth', "In the context of AYO, youth refers to individuals aged 15–35, consistent with the African Union definition codified in the African Youth Charter. The UN's narrower 15–24 band remains queryable on Explore for cross-reference."],
   ['neet', 'NEET Rate', 'The share of young people who are Not in Education, Employment, or Training. A key indicator of youth economic exclusion.'],
   ['unemployment', 'Youth Unemployment Rate', 'The percentage of the youth labor force (15–35) that is without work but available and seeking employment.'],
   ['lfp', 'Labor Force Participation Rate', 'The percentage of youth population that is either employed or actively seeking employment.'],
@@ -169,7 +169,7 @@ const methodologyEntries: CmsRegistryEntry[] = [
   meth('methodology.qa.credibility.body', 'qa', 'RICH_TEXT', 'Assign 1-5 star rating based on source reliability, methodology rigor, and recency.'),
 
   meth('methodology.ayi.title', 'ayi', 'TEXT', 'African Youth Index Methodology'),
-  meth('methodology.ayi.intro', 'ayi', 'RICH_TEXT', 'The African Youth Index (AYI) is a composite indicator developed by AYD to provide a comprehensive measure of youth development across African countries.'),
+  meth('methodology.ayi.intro', 'ayi', 'RICH_TEXT', 'The African Youth Index (AYI) is a composite indicator developed by AYO to provide a comprehensive measure of youth development across African countries.'),
   meth('methodology.ayi.calculation', 'ayi', 'RICH_TEXT', '<li>Normalize all indicators to 0-100 scale using min-max normalization</li><li>Calculate dimension scores as weighted average of constituent indicators</li><li>Compute overall AYI as weighted sum of dimension scores</li><li>Rank countries from highest to lowest AYI score</li>'),
 
   meth('methodology.updates.title', 'updates', 'TEXT', 'Data Updates & Version Control'),

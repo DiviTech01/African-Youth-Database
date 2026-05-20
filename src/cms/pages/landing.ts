@@ -4,7 +4,7 @@ const PAGE = 'landing';
 
 export const landingEntries: CmsRegistryEntry[] = [
   // Brand / header
-  { key: 'landing.brand.name', page: PAGE, section: 'header', contentType: 'TEXT', defaultContent: 'African Youth Observatory', description: 'Wordmark next to the AYD logo.' },
+  { key: 'landing.brand.name', page: PAGE, section: 'header', contentType: 'TEXT', defaultContent: 'African Youth Observatory', description: 'Wordmark next to the AYO logo.' },
   { key: 'landing.header.signin', page: PAGE, section: 'header', contentType: 'TEXT', defaultContent: 'Sign In' },
   { key: 'landing.header.get_started', page: PAGE, section: 'header', contentType: 'TEXT', defaultContent: 'Get Started' },
 
@@ -40,9 +40,9 @@ export const landingEntries: CmsRegistryEntry[] = [
 
   // Bottom CTA
   { key: 'landing.bottom_cta.title', page: PAGE, section: 'cta', contentType: 'TEXT', defaultContent: "Ready to Unlock Africa's Youth Data?" },
-  { key: 'landing.bottom_cta.description', page: PAGE, section: 'cta', contentType: 'RICH_TEXT', defaultContent: 'Join researchers, policymakers, and organizations using AYD to drive meaningful change across the continent.' },
+  { key: 'landing.bottom_cta.description', page: PAGE, section: 'cta', contentType: 'RICH_TEXT', defaultContent: 'Join researchers, policymakers, and organizations using AYO to drive meaningful change across the continent.' },
   { key: 'landing.bottom_cta.primary', page: PAGE, section: 'cta', contentType: 'TEXT', defaultContent: 'Create Free Account' },
-  { key: 'landing.bottom_cta.secondary', page: PAGE, section: 'cta', contentType: 'TEXT', defaultContent: 'Learn More About AYD' },
+  { key: 'landing.bottom_cta.secondary', page: PAGE, section: 'cta', contentType: 'TEXT', defaultContent: 'Learn More About AYO' },
 
   // Footer
   { key: 'landing.footer.copyright', page: PAGE, section: 'footer', contentType: 'TEXT', defaultContent: '© 2026 African Youth Observatory. Powered by PACSDA & ZeroUp Next.' },

@@ -156,7 +156,7 @@ const Methodology = () => {
                 <Content
                   as="p"
                   id="methodology.ayi.intro"
-                  fallback="The African Youth Index (AYI) is a composite indicator developed by AYD to provide a comprehensive measure of youth development across African countries."
+                  fallback="The African Youth Index (AYI) is a composite indicator developed by AYO to provide a comprehensive measure of youth development across African countries."
                 />
                 <h4 className="text-foreground font-semibold mt-4">Dimensions & Indicators</h4>
                 <div className="not-prose overflow-x-auto">

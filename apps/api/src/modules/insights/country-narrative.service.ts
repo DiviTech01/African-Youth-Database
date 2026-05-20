@@ -134,7 +134,7 @@ export class CountryNarrativeService {
       }),
     ].join('\n');
 
-    const systemPrompt = `You are writing the overview narrative for a country profile on the African Youth Database.
+    const systemPrompt = `You are writing the overview narrative for a country profile on the African Youth Observatory.
 
 Given the data below, produce a JSON object with:
 {

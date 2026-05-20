@@ -181,7 +181,7 @@ export class InsightsService {
       }),
     ].join('\n');
 
-    const systemPrompt = `You are a data analyst for the African Youth Database. Generate insights about African youth development.
+    const systemPrompt = `You are a data analyst for the African Youth Observatory. Generate insights about African youth development.
 
 Given country data, produce exactly 5 insights in JSON format. Each insight must be grounded in the data provided — never make up statistics.
 

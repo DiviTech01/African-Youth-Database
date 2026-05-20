@@ -6,8 +6,8 @@ import { Content } from '@/components/cms';
 import { useContentText } from '@/contexts/ContentContext';
 
 const glossaryTerms = [
-  { slug: 'ayi', term: 'African Youth Index (AYI)', definition: 'A composite indicator developed by AYD that ranks African countries based on youth development outcomes across education, employment, health, and civic engagement.', category: 'Indices' },
-  { slug: 'youth', term: 'Youth', definition: 'In the context of AYD, youth refers to individuals aged 15–35, consistent with the African Union definition codified in the African Youth Charter. The UN\'s narrower 15–24 band remains queryable for cross-reference.', category: 'Demographics' },
+  { slug: 'ayi', term: 'African Youth Index (AYI)', definition: 'A composite indicator developed by AYO that ranks African countries based on youth development outcomes across education, employment, health, and civic engagement.', category: 'Indices' },
+  { slug: 'youth', term: 'Youth', definition: 'In the context of AYO, youth refers to individuals aged 15–35, consistent with the African Union definition codified in the African Youth Charter. The UN\'s narrower 15–24 band remains queryable for cross-reference.', category: 'Demographics' },
   { slug: 'neet', term: 'NEET Rate', definition: 'The share of young people (15–35) who are Not in Education, Employment, or Training. A key indicator of youth economic exclusion.', category: 'Employment' },
   { slug: 'unemployment', term: 'Youth Unemployment Rate', definition: 'The percentage of the youth labour force (15–35) that is without work but available and seeking employment.', category: 'Employment' },
   { slug: 'lfp', term: 'Labor Force Participation Rate', definition: 'The percentage of youth population (15–35) that is either employed or actively seeking employment.', category: 'Employment' },

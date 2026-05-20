@@ -21,7 +21,7 @@ interface PolicyFlowProps {
  *
  * The server applies the AYC Composite Policy Index scoring rules
  * (status × recency, with a legal-anchoring bonus) to each policy column,
- * resolves countries against the AYD database, and produces one
+ * resolves countries against the AYO database, and produces one
  * CountryPolicy record per (country × policy type).
  */
 const PolicyFlow: React.FC<PolicyFlowProps> = ({ file, onDone }) => {

@@ -1,9 +1,9 @@
 {
   "_meta": {
     "version": 1,
-    "description": "Maps AYIMS Data Template column headers (row 3) to AYD indicator slugs.",
+    "description": "Maps AYIMS Data Template column headers (row 3) to AYO indicator slugs.",
     "schema": {
-      "slug": "AYD Indicator.slug. Required unless 'skip' is true.",
+      "slug": "AYO Indicator.slug. Required unless 'skip' is true.",
       "gender": "MALE | FEMALE | TOTAL — defaults to TOTAL",
       "ageGroup": "default 15-35",
       "transform": "none | multiply_1000 | divide_100 | invert — applied to the raw cell value before insert",

@@ -125,7 +125,7 @@ export class ExportService {
 
     // Header metadata as comments
     const meta = [
-      '# African Youth Database — Data Export',
+      '# African Youth Observatory — Data Export',
       `# Generated: ${now}`,
       `# Filters: ${filterDesc}`,
       '# Source: africanyouthobservatory.org',
@@ -186,7 +186,7 @@ export class ExportService {
     const now = new Date().toISOString();
     const output = {
       metadata: {
-        platform: 'African Youth Database',
+        platform: 'African Youth Observatory',
         exportDate: now,
         filters: this.describeFilters(query),
         recordCount: rows.length,
@@ -239,7 +239,7 @@ export class ExportService {
 
     // Metadata sheet
     const metaRows = [
-      ['Platform', 'African Youth Database'],
+      ['Platform', 'African Youth Observatory'],
       ['Export Date', now],
       ['Record Count', String(rows.length)],
       ['Source', 'africanyouthobservatory.org'],
@@ -335,7 +335,7 @@ export class ExportService {
 </head>
 <body>
   <h1>${country.flagEmoji || ''} Country Profile: ${escHtml(country.name)}</h1>
-  <p class="meta">African Youth Database — Generated ${now}</p>
+  <p class="meta">African Youth Observatory — Generated ${now}</p>
 
   <h2>Country Overview</h2>
   <table>

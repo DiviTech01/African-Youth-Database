@@ -248,7 +248,7 @@ export const InsightsDashboard: React.FC<InsightsDashboardProps> = ({
             <h2 className="text-2xl font-bold">AI-Powered Insights</h2>
             <Badge variant="secondary" className="ml-2">
               <Sparkles className="h-3 w-3 mr-1" />
-              Powered by AYD Analytics
+              Powered by AYO Analytics
             </Badge>
           </div>
           <p className="text-muted-foreground">

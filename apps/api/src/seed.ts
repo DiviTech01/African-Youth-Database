@@ -5,7 +5,7 @@ import * as path from 'path';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding AYD database...');
+  console.log('🌱 Seeding AYO database...');
 
   // Load seed data
   const seedDir = path.resolve(__dirname, '../../../seed');

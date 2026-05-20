@@ -64,7 +64,7 @@ const SaaSHero = React.memo(() => {
           <div className="relative rounded-xl border border-gray-800 overflow-hidden shadow-2xl shadow-black/50">
             <img
               src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=675&fit=crop&q=80"
-              alt="AYD Analytics Dashboard showing youth data insights across African nations"
+              alt="AYO Analytics Dashboard showing youth data insights across African nations"
               className="w-full h-auto"
               loading="eager"
             />

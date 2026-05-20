@@ -1,4 +1,4 @@
-// API Client utility for AYD Platform
+// API Client utility for AYO Platform
 // Wraps fetch with typed responses, error handling, and base URL configuration
 import { getSupabaseAccessToken } from '@/lib/supabase-token';
 

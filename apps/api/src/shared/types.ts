@@ -1,5 +1,5 @@
 // ============================================================
-// AYD Shared Types — The API Contract
+// AYO Shared Types — The API Contract
 // Both frontend (@ayd/web) and backend (@ayd/api) import from here
 // ============================================================
 

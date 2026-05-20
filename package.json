@@ -2,7 +2,7 @@
   "name": "ayd-platform",
   "private": true,
   "version": "1.0.0",
-  "description": "African Youth Database — Continental Data Intelligence Platform",
+  "description": "African Youth Observatory — Continental Data Intelligence Platform",
   "scripts": {
     "dev": "vite",
     "dev:api": "cd apps/api && npm run dev",

@@ -303,7 +303,7 @@ export class EmbedService {
         'All embed endpoints return self-contained HTML designed for iframe embedding.',
         'Charts use Chart.js loaded from CDN.',
         'Data is cached for 30 minutes.',
-        'Include the AYD watermark when embedding.',
+        'Include the AYO watermark when embedding.',
       ],
     };
   }

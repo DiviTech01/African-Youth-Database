@@ -159,7 +159,7 @@ export class MailService {
       ${p('If you didn\'t request this, you can safely ignore this email. Your password will not change.')}
     `);
 
-    return this.send(to, `${code} is your AYD password reset code`, html);
+    return this.send(to, `${code} is your AYO password reset code`, html);
   }
 
   // ── Contact Form Confirmation ──────────────────────────────

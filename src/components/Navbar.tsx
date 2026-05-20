@@ -94,7 +94,7 @@ const Navbar = () => {
         <div className="flex items-center gap-2">
           <Link to="/" className="flex items-center space-x-2">
             <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-primary">
-              <span className="font-bold text-primary-foreground text-sm sm:text-base">AYD</span>
+              <span className="font-bold text-primary-foreground text-sm sm:text-base">AYO</span>
             </div>
             <Content
               as="span"
@@ -250,7 +250,7 @@ const Navbar = () => {
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
-                    <span className="font-bold text-primary-foreground">AYD</span>
+                    <span className="font-bold text-primary-foreground">AYO</span>
                   </div>
                   <Content as="span" id="navbar.brand.name" fallback="African Youth Observatory" className="text-foreground" />
                 </SheetTitle>

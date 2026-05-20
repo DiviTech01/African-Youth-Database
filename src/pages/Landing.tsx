@@ -177,7 +177,7 @@ const Landing = () => {
         <div className="container px-3 sm:px-4 md:px-6 h-16 flex items-center justify-between gap-2">
           <Link to="/" className="flex items-center gap-2 min-w-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold shrink-0">
-              AYD
+              AYO
             </div>
             <Content as="span" id="landing.brand.name" fallback="African Youth Observatory" className="font-display font-bold text-lg hidden sm:block truncate" />
           </Link>
@@ -329,7 +329,7 @@ const Landing = () => {
             <Content
               as="p"
               id="landing.bottom_cta.description"
-              fallback="Join researchers, policymakers, and organizations using AYD to drive meaningful change across the continent."
+              fallback="Join researchers, policymakers, and organizations using AYO to drive meaningful change across the continent."
               className="text-sm sm:text-lg text-muted-foreground"
             />
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -341,7 +341,7 @@ const Landing = () => {
               </Link>
               <Link to="/about">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto text-base px-8">
-                  <Content as="span" id="landing.bottom_cta.secondary" fallback="Learn More About AYD" />
+                  <Content as="span" id="landing.bottom_cta.secondary" fallback="Learn More About AYO" />
                 </Button>
               </Link>
             </div>
@@ -368,7 +368,7 @@ const Landing = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                AYD
+                AYO
               </div>
               <Content
                 as="span"

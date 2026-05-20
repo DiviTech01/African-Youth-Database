@@ -156,7 +156,7 @@ const AyimsFlow: React.FC<AyimsFlowProps> = ({ file, onDone }) => {
             <p className="font-semibold text-[#D4A017]">Detected: AYIMS Data Entry Template</p>
             <p className="text-xs text-gray-400 mt-1 leading-relaxed">
               This template covers <strong>54 indicators × 20 years</strong> for one country. The country
-              is auto-detected from the filename. We'll extract every cell, map each column to an AYD
+              is auto-detected from the filename. We'll extract every cell, map each column to an AYO
               indicator (with gender / age-group splits where applicable), and insert one IndicatorValue
               row per (year × indicator). After commit, every page tied to these indicators updates live.
             </p>

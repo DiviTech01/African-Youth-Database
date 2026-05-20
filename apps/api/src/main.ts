@@ -80,9 +80,9 @@ async function bootstrap() {
 
   // Swagger
   const config = new DocumentBuilder()
-    .setTitle('African Youth Database API')
+    .setTitle('African Youth Observatory API')
     .setDescription(
-      `The AYD API provides access to youth-disaggregated data across all 54 African countries.
+      `The AYO API provides access to youth-disaggregated data across all 54 African countries.
 
 ## Authentication
 Most GET endpoints are public. Protected endpoints require a Bearer token obtained via \`POST /api/auth/signin\`.
@@ -101,7 +101,7 @@ Most GET endpoints are public. Protected endpoints require a Bearer token obtain
 World Bank, ILO, UNESCO, national statistics bureaus`,
     )
     .setVersion('1.0.0')
-    .setContact('AYD Team', 'https://africanyouthobservatory.org', 'info@africanyouthobservatory.org')
+    .setContact('AYO Team', 'https://africanyouthobservatory.org', 'info@africanyouthobservatory.org')
     .setLicense('CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/')
     .addBearerAuth()
     .addTag('countries', 'Country data and profiles')
@@ -139,7 +139,7 @@ World Bank, ILO, UNESCO, national statistics bureaus`,
   // Render injects $PORT automatically; fall back to API_PORT, then 3001 for local dev.
   const port = process.env.PORT || process.env.API_PORT || 3001;
   await app.listen(port);
-  console.log(`🌍 AYD API running on http://localhost:${port}/api`);
+  console.log(`🌍 AYO API running on http://localhost:${port}/api`);
   console.log(`📚 Swagger docs at http://localhost:${port}/api/docs`);
   console.log(`📊 19 modules loaded | 18 Swagger tags`);
 }

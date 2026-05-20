@@ -7,7 +7,7 @@
 //  - Keys are namespaced (`nav.*`, `common.*`, `home.*`, ...).
 //  - `t()` supports `{param}` interpolation (see LanguageContext).
 //  - Brand / acronym terms stay literal in every language:
-//    African Youth Observatory, AYD, AYI, AYEMI, PACSDA, NEET, GPI, GER, NER, HIV.
+//    African Youth Observatory, AYO, AYI, AYEMI, PACSDA, NEET, GPI, GER, NER, HIV.
 
 export type Language = 'en' | 'fr' | 'ar' | 'pt' | 'sw';
 

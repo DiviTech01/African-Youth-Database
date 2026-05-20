@@ -172,7 +172,7 @@ export interface DatasetVersion {
 }
 
 // ============================================
-// 5. DATA VALUES (FACT TABLE) - Core of AYD
+// 5. DATA VALUES (FACT TABLE) - Core of AYO
 // ============================================
 
 export type GenderType = 'male' | 'female' | 'total';
