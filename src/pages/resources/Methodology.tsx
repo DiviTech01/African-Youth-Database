@@ -170,24 +170,39 @@ const Methodology = () => {
                     </thead>
                     <tbody className="divide-y">
                       <tr>
+                        <td className="py-2">Youth Demography &amp; Participation</td>
+                        <td className="py-2 font-semibold">20%</td>
+                        <td className="py-2">Population share, voter turnout, parliamentary representation, trust in government, freedom of association, AYC policy markers</td>
+                      </tr>
+                      <tr>
                         <td className="py-2">Education</td>
-                        <td className="py-2">25%</td>
-                        <td className="py-2">Literacy rate, enrollment, completion rates, gender parity</td>
+                        <td className="py-2 font-semibold">15%</td>
+                        <td className="py-2">Literacy, primary / secondary / tertiary enrollment, dropout, teacher–student ratio, education spending</td>
                       </tr>
                       <tr>
                         <td className="py-2">Employment</td>
-                        <td className="py-2">30%</td>
-                        <td className="py-2">Unemployment, NEET rate, labor participation, formality</td>
+                        <td className="py-2 font-semibold">15%</td>
+                        <td className="py-2">Unemployment, labor-force participation, employment-to-population ratio, sectoral split, informal employment</td>
                       </tr>
                       <tr>
                         <td className="py-2">Health</td>
-                        <td className="py-2">25%</td>
-                        <td className="py-2">Healthcare access, mental health, nutrition, mortality</td>
+                        <td className="py-2 font-semibold">15%</td>
+                        <td className="py-2">Skilled birth attendance, physician density, HIV prevalence + treatment, contraceptive prevalence, mortality (suicide, AIDS, accidents, substance abuse), maternal mortality, health spending</td>
                       </tr>
                       <tr>
-                        <td className="py-2">Civic Engagement</td>
-                        <td className="py-2">20%</td>
-                        <td className="py-2">Political participation, volunteering, digital inclusion</td>
+                        <td className="py-2">Entrepreneurship</td>
+                        <td className="py-2 font-semibold">15%</td>
+                        <td className="py-2">Startup survival, microcredit recipients, IP registrations, internet access, Getting Credit / Protecting Investors rank (WB), mobile money, financial literacy, entrepreneurship rate</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2">Peace &amp; Security</td>
+                        <td className="py-2 font-semibold">10%</td>
+                        <td className="py-2">Internally displaced youth, trafficking victims, deaths from violent extremism (ages 18–35)</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2">Access to Justice</td>
+                        <td className="py-2 font-semibold">10%</td>
+                        <td className="py-2">Youth awaiting trial, youth imprisoned, juvenile detentions</td>
                       </tr>
                     </tbody>
                   </table>

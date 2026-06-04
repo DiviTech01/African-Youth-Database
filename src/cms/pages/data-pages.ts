@@ -58,7 +58,7 @@ entries.push(
     section: 'about',
     contentType: 'RICH_TEXT',
     defaultContent:
-      'The AYI is a composite indicator ranking African countries based on youth development outcomes. Scores range from 0-100, calculated across four dimensions: Education (25%), Employment (30%), Health (25%), and Civic Engagement (20%). Rankings are updated annually.',
+      'The African Youth Index is a composite indicator that ranks all 54 African Union member states by youth development outcomes. Scores range from 0–100 and are computed each year across seven weighted thematic dimensions: Youth Demography & Participation (20%), Education (15%), Employment (15%), Health (15%), Entrepreneurship (15%), Peace & Security (10%), and Access to Justice (10%). Indicator values are min–max normalized per year, then combined with these weights into the overall score. Missing indicators have their weight redistributed within the same theme; missing themes fall back to the regional average.',
   },
   { key: 'youth_index.about.methodology_link', page: YI, section: 'about', contentType: 'TEXT', defaultContent: 'View full methodology' },
 );

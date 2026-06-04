@@ -12,12 +12,17 @@ export const REGIONS: { value: Region; label: string }[] = [
   { value: 'SOUTHERN_AFRICA', label: 'Southern Africa' },
 ];
 
+// AYO Youth Index — seven user-mandated weights, summing to 1.0.
+// The DB is the source of truth (Theme.weight); this constant exists for
+// places that need the weights without a Prisma round-trip.
 export const YOUTH_INDEX_WEIGHTS = {
-  education: 0.25,
-  employment: 0.30,
-  health: 0.25,
-  civicEngagement: 0.20,
-  innovation: 0.20,
+  'youth-demography-participation': 0.20,
+  'education':                       0.15,
+  'employment':                      0.15,
+  'health':                          0.15,
+  'entrepreneurship':                0.15,
+  'peace-security':                  0.10,
+  'access-to-justice':               0.10,
 } as const;
 
 export const AGE_GROUPS = [
@@ -47,26 +52,23 @@ export const DEFAULT_YEAR_RANGE = {
   max: 2024,
 } as const;
 
+// Colours and icons for the 7 AYO themes. Match Theme.color / Theme.icon in the DB.
 export const THEME_COLORS: Record<string, string> = {
-  education: '#4CAF50',
-  'employment-entrepreneurship': '#2196F3',
-  health: '#F44336',
-  'civic-engagement-governance': '#9C27B0',
-  'innovation-technology': '#FF9800',
-  agriculture: '#8BC34A',
-  'gender-equality': '#E91E63',
-  'financial-inclusion': '#00BCD4',
-  'environment-climate': '#009688',
+  'youth-demography-participation': '#2563EB',
+  'education':                       '#7C3AED',
+  'employment':                      '#EA580C',
+  'health':                          '#DC2626',
+  'entrepreneurship':                '#0891B2',
+  'peace-security':                  '#16A34A',
+  'access-to-justice':               '#9333EA',
 };
 
 export const THEME_ICONS: Record<string, string> = {
-  education: 'GraduationCap',
-  'employment-entrepreneurship': 'Briefcase',
-  health: 'Heart',
-  'civic-engagement-governance': 'Vote',
-  'innovation-technology': 'Lightbulb',
-  agriculture: 'Wheat',
-  'gender-equality': 'Users',
-  'financial-inclusion': 'Wallet',
-  'environment-climate': 'Leaf',
+  'youth-demography-participation': 'Users',
+  'education':                       'GraduationCap',
+  'employment':                      'Briefcase',
+  'health':                          'HeartPulse',
+  'entrepreneurship':                'Rocket',
+  'peace-security':                  'Shield',
+  'access-to-justice':               'Scale',
 };

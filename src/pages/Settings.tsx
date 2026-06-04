@@ -45,7 +45,7 @@ const isValidTab = (s: string | null): s is SettingsTab =>
   s === 'profile' || s === 'security' || s === 'preferences';
 
 const Settings = () => {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const { user, signOut } = useAuth();
   // Tab is driven by the URL hash so /settings#profile, /settings#security, etc.
   // open the matching tab. Falls back to "profile" when no hash is present.
@@ -291,10 +291,10 @@ const Settings = () => {
           <Card className="bg-white/[0.03] border-gray-800/80 rounded-2xl">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Globe className="h-4 w-4 text-[#D4A017]" /> Language
+                <Globe className="h-4 w-4 text-[#D4A017]" /> {t('settings.language')}
               </CardTitle>
               <CardDescription className="text-gray-400 text-xs">
-                Choose the interface language for your sessions.
+                {t('settings.languageDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>

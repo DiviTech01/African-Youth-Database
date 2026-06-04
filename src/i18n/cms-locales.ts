@@ -63,7 +63,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.hero.cta_label': 'Explorer les données',
     // Home — quick stats
     'home.quick_stats.title': 'Statistiques clés',
-    'home.quick_stats.subtitle': 'Découvrez les données essentielles sur la jeunesse africaine à travers nos cinq domaines thématiques principaux.',
+    'home.quick_stats.subtitle': 'Données réelles sur la jeunesse issues du modèle AYIMS, à travers nos sept domaines thématiques couvrant les 54 pays africains.',
     'home.quick_stats.population.title': 'Population',
     'home.quick_stats.population.description': 'Jeunes africains âgés de 15 à 35 ans',
     'home.quick_stats.education.title': 'Éducation',
@@ -432,7 +432,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.hero.cta_label': 'استكشف البيانات',
     // Home — quick stats
     'home.quick_stats.title': 'إحصاءات رئيسية',
-    'home.quick_stats.subtitle': 'استكشف أهم نقاط البيانات عن الشباب الأفريقي عبر مجالاتنا المواضيعية الخمسة الأساسية.',
+    'home.quick_stats.subtitle': 'بيانات حقيقية عن الشباب من نموذج AYIMS، عبر مجالاتنا المواضيعية السبعة الأساسية التي تغطي جميع الدول الأفريقية الـ54.',
     'home.quick_stats.population.title': 'السكان',
     'home.quick_stats.population.description': 'الشباب الأفريقي بين 15 و35 عامًا',
     'home.quick_stats.education.title': 'التعليم',
@@ -801,7 +801,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.hero.cta_label': 'Explorar dados',
     // Home — quick stats
     'home.quick_stats.title': 'Estatísticas-chave',
-    'home.quick_stats.subtitle': 'Explore os dados essenciais sobre a juventude africana nas nossas cinco áreas temáticas principais.',
+    'home.quick_stats.subtitle': 'Dados reais sobre juventude provenientes do modelo AYIMS, nas nossas sete áreas temáticas principais cobrindo todos os 54 países africanos.',
     'home.quick_stats.population.title': 'População',
     'home.quick_stats.population.description': 'Jovens africanos entre os 15 e os 35 anos',
     'home.quick_stats.education.title': 'Educação',
@@ -1170,7 +1170,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'home.hero.cta_label': 'Chunguza data',
     // Home — quick stats
     'home.quick_stats.title': 'Takwimu muhimu',
-    'home.quick_stats.subtitle': 'Chunguza pointi muhimu za data kuhusu vijana wa Afrika katika maeneo yetu matano makuu ya mada.',
+    'home.quick_stats.subtitle': 'Data halisi za vijana kutoka kwa kiolezo cha AYIMS, katika maeneo yetu saba makuu ya mada yanayofunika nchi zote 54 za Afrika.',
     'home.quick_stats.population.title': 'Idadi ya watu',
     'home.quick_stats.population.description': 'Vijana wa Afrika wenye umri wa miaka 15-35',
     'home.quick_stats.education.title': 'Elimu',

@@ -160,9 +160,9 @@ const Admin = () => {
             size="sm"
             className="gap-1.5 h-8 text-xs"
             onClick={startPreview}
-            title="See the platform as a regular user — a banner will offer Exit preview on every page"
+            title="Switch to the regular user view of the platform — a Back to admin button will be visible on every page"
           >
-            <Eye className="h-3.5 w-3.5" /> View as user
+            <Eye className="h-3.5 w-3.5" /> Back to platform
           </Button>
         </div>
       </div>

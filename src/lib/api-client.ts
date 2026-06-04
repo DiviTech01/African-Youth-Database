@@ -2,9 +2,26 @@
 // Wraps fetch with typed responses, error handling, and base URL configuration
 import { getSupabaseAccessToken } from '@/lib/supabase-token';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== '/api'
-  ? import.meta.env.VITE_API_URL
-  : 'https://african-youth-observatory.onrender.com/api';
+// Resolve the API base URL:
+//   1. If VITE_API_URL is an absolute URL (https://…), use it verbatim. Lets
+//      a hosted build target a specific backend.
+//   2. If running on localhost (vite dev), use the relative `/api` path so
+//      vite.config.ts's proxy forwards calls to the local NestJS at :3001.
+//      This keeps the browser same-origin and avoids CORS in dev.
+//   3. Otherwise (production build served from Cloudflare Pages etc.), point
+//      at the Render-deployed API.
+const PROD_API_URL = 'https://african-youth-observatory.onrender.com/api';
+function resolveApiBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined;
+  if (envUrl && /^https?:\/\//i.test(envUrl)) return envUrl;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+    if (isLocal) return '/api';
+  }
+  return envUrl || PROD_API_URL;
+}
+const API_BASE_URL = resolveApiBaseUrl();
 
 // ─── Shared Types (API Contract) ─────────────────────────────────────────────
 

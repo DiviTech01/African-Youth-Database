@@ -91,16 +91,16 @@ export const REGIONS: { name: RegionType; countries: string[] }[] = [
 // THEMES
 // ============================================
 
+// The seven AYO core themes. Slugs match the Theme table in Supabase.
+// Weights live on Theme.weight in the DB (20/15/15/15/15/10/10).
 export const THEMES: Theme[] = [
-  { id: 'education', name: 'Education', slug: 'education', description: 'Youth literacy, enrollment rates, educational attainment, and quality of education across African countries.', icon: 'GraduationCap', color: '#3B82F6', indicatorCount: 12, order: 1 },
-  { id: 'employment', name: 'Employment', slug: 'employment', description: 'Youth unemployment, labor force participation, decent work indicators, and entrepreneurship rates.', icon: 'Briefcase', color: '#F59E0B', indicatorCount: 15, order: 2 },
-  { id: 'health', name: 'Health', slug: 'health', description: 'Youth health outcomes, access to healthcare, mental health, and reproductive health indicators.', icon: 'Heart', color: '#EF4444', indicatorCount: 14, order: 3 },
-  { id: 'civic-engagement', name: 'Civic Engagement', slug: 'civic-engagement', description: 'Youth participation in governance, voting rates, civil society engagement, and political representation.', icon: 'Users', color: '#8B5CF6', indicatorCount: 8, order: 4 },
-  { id: 'innovation', name: 'Innovation & Technology', slug: 'innovation', description: 'Digital access, internet penetration, tech startups, and innovation ecosystems for youth.', icon: 'Lightbulb', color: '#06B6D4', indicatorCount: 10, order: 5 },
-  { id: 'agriculture', name: 'Agriculture', slug: 'agriculture', description: 'Youth involvement in agriculture, agribusiness, land access, and food security.', icon: 'Wheat', color: '#22C55E', indicatorCount: 8, order: 6 },
-  { id: 'gender', name: 'Gender', slug: 'gender', description: 'Gender equality indicators, female youth empowerment, and gender-based disparities.', icon: 'Scale', color: '#EC4899', indicatorCount: 10, order: 7 },
-  { id: 'finance', name: 'Financial Inclusion', slug: 'finance', description: 'Youth access to banking, credit, savings, and financial literacy programs.', icon: 'Wallet', color: '#14B8A6', indicatorCount: 7, order: 8 },
-  { id: 'environment', name: 'Environment', slug: 'environment', description: 'Youth engagement in climate action, environmental awareness, and green jobs.', icon: 'Leaf', color: '#84CC16', indicatorCount: 6, order: 9 },
+  { id: 'youth-demography-participation', name: 'Youth Demography & Participation', slug: 'youth-demography-participation', description: 'Youth population structure, civic participation, voter turnout, political representation, and inclusion of youth with disabilities.', icon: 'Users',        color: '#2563EB', indicatorCount: 17, order: 1 },
+  { id: 'education',                       name: 'Education',                        slug: 'education',                       description: 'Youth literacy, enrollment across primary/secondary/tertiary, dropout, teacher ratios, and education spending.',            icon: 'GraduationCap', color: '#7C3AED', indicatorCount: 15, order: 2 },
+  { id: 'employment',                      name: 'Employment',                       slug: 'employment',                      description: 'Youth unemployment, labor-force participation, employment-to-population ratio, sectoral split, and informal work.',           icon: 'Briefcase',     color: '#EA580C', indicatorCount: 13, order: 3 },
+  { id: 'health',                          name: 'Health',                           slug: 'health',                          description: 'Skilled births, contraceptive access, HIV prevalence and treatment, mortality, suicide, mental health, and health spending.', icon: 'HeartPulse',    color: '#DC2626', indicatorCount: 20, order: 4 },
+  { id: 'entrepreneurship',                name: 'Entrepreneurship',                 slug: 'entrepreneurship',                description: 'Startup survival, microcredit, IP registrations, credit access, digital infrastructure, and the financial-inclusion environment.', icon: 'Rocket',       color: '#0891B2', indicatorCount: 35, order: 5 },
+  { id: 'peace-security',                  name: 'Peace & Security',                 slug: 'peace-security',                  description: 'Internally displaced youth, victims of trafficking, and deaths from violent extremism.',                                       icon: 'Shield',        color: '#16A34A', indicatorCount: 3,  order: 6 },
+  { id: 'access-to-justice',               name: 'Access to Justice',                slug: 'access-to-justice',               description: 'Youth awaiting trial, youth imprisoned, and juvenile detentions.',                                                              icon: 'Scale',         color: '#9333EA', indicatorCount: 4,  order: 7 },
 ];
 
 // ============================================
@@ -132,64 +132,87 @@ export const INDICATORS: Indicator[] = [
   { id: 'hlt005', name: 'Mental Health Support Access', shortName: 'Mental Health Access', code: 'HLT005', unit: 'percentage', description: 'Youth with access to mental health services', themeId: 'health', methodology: 'WHO mental health atlas methodology', sourceDefault: 'WHO', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['mental health', 'support'], createdAt: new Date(), updatedAt: new Date() },
 
   // CIVIC ENGAGEMENT INDICATORS
-  { id: 'civ001', name: 'Youth Voter Turnout', shortName: 'Voter Turnout', code: 'CIV001', unit: 'percentage', description: 'Percentage of eligible youth who voted in last election', themeId: 'civic-engagement', methodology: 'Electoral commission data and surveys', sourceDefault: 'IDEA', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['voting', 'democracy'], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'civ002', name: 'Youth in Parliament', shortName: 'Youth MPs', code: 'CIV002', unit: 'percentage', description: 'Percentage of parliamentary seats held by youth under 35', themeId: 'civic-engagement', methodology: 'IPU data on parliamentary composition', sourceDefault: 'IPU', minValue: 0, maxValue: 50, isHigherBetter: true, isPublic: true, tags: ['parliament', 'representation'], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'civ003', name: 'Civil Society Participation', shortName: 'CSO Participation', code: 'CIV003', unit: 'percentage', description: 'Youth active in civil society organizations', themeId: 'civic-engagement', methodology: 'Survey-based measurement', sourceDefault: 'Afrobarometer', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['civil society', 'participation'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'civ001', name: 'Youth Voter Turnout', shortName: 'Voter Turnout', code: 'CIV001', unit: 'percentage', description: 'Percentage of eligible youth who voted in last election', themeId: 'youth-demography-participation', methodology: 'Electoral commission data and surveys', sourceDefault: 'IDEA', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['voting', 'democracy'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'civ002', name: 'Youth in Parliament', shortName: 'Youth MPs', code: 'CIV002', unit: 'percentage', description: 'Percentage of parliamentary seats held by youth under 35', themeId: 'youth-demography-participation', methodology: 'IPU data on parliamentary composition', sourceDefault: 'IPU', minValue: 0, maxValue: 50, isHigherBetter: true, isPublic: true, tags: ['parliament', 'representation'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'civ003', name: 'Civil Society Participation', shortName: 'CSO Participation', code: 'CIV003', unit: 'percentage', description: 'Youth active in civil society organizations', themeId: 'youth-demography-participation', methodology: 'Survey-based measurement', sourceDefault: 'Afrobarometer', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['civil society', 'participation'], createdAt: new Date(), updatedAt: new Date() },
 
   // INNOVATION & TECHNOLOGY INDICATORS
-  { id: 'inn001', name: 'Internet Penetration (Youth)', shortName: 'Internet Access', code: 'INN001', unit: 'percentage', description: 'Percentage of youth with internet access', themeId: 'innovation', methodology: 'ITU measurement methodology', sourceDefault: 'ITU', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['internet', 'digital access'], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'inn002', name: 'Mobile Phone Ownership (Youth)', shortName: 'Mobile Ownership', code: 'INN002', unit: 'percentage', description: 'Percentage of youth owning a mobile phone', themeId: 'innovation', methodology: 'GSMA measurement methodology', sourceDefault: 'GSMA', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['mobile', 'digital access'], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'inn003', name: 'Digital Skills Index', shortName: 'Digital Skills', code: 'INN003', unit: 'index', description: 'Composite index of digital literacy and skills', themeId: 'innovation', methodology: 'ITU digital skills framework', sourceDefault: 'ITU', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['skills', 'digital literacy'], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'inn004', name: 'Youth Tech Startups', shortName: 'Tech Startups', code: 'INN004', unit: 'number', description: 'Number of youth-founded tech startups', themeId: 'innovation', methodology: 'Startup ecosystem tracking', sourceDefault: 'Various', minValue: 0, maxValue: 10000, isHigherBetter: true, isPublic: true, tags: ['startups', 'entrepreneurship', 'tech'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'inn001', name: 'Internet Penetration (Youth)', shortName: 'Internet Access', code: 'INN001', unit: 'percentage', description: 'Percentage of youth with internet access', themeId: 'entrepreneurship', methodology: 'ITU measurement methodology', sourceDefault: 'ITU', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['internet', 'digital access'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'inn002', name: 'Mobile Phone Ownership (Youth)', shortName: 'Mobile Ownership', code: 'INN002', unit: 'percentage', description: 'Percentage of youth owning a mobile phone', themeId: 'entrepreneurship', methodology: 'GSMA measurement methodology', sourceDefault: 'GSMA', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['mobile', 'digital access'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'inn003', name: 'Digital Skills Index', shortName: 'Digital Skills', code: 'INN003', unit: 'index', description: 'Composite index of digital literacy and skills', themeId: 'entrepreneurship', methodology: 'ITU digital skills framework', sourceDefault: 'ITU', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['skills', 'digital literacy'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'inn004', name: 'Youth Tech Startups', shortName: 'Tech Startups', code: 'INN004', unit: 'number', description: 'Number of youth-founded tech startups', themeId: 'entrepreneurship', methodology: 'Startup ecosystem tracking', sourceDefault: 'Various', minValue: 0, maxValue: 10000, isHigherBetter: true, isPublic: true, tags: ['startups', 'entrepreneurship', 'tech'], createdAt: new Date(), updatedAt: new Date() },
 
   // AGRICULTURE INDICATORS
-  { id: 'agr001', name: 'Youth in Agriculture', shortName: 'Agri Employment', code: 'AGR001', unit: 'percentage', description: 'Share of youth employed in agriculture sector', themeId: 'agriculture', methodology: 'ILO sectoral employment data', sourceDefault: 'FAO', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['agriculture', 'employment'], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'agr002', name: 'Youth Land Access', shortName: 'Land Access', code: 'AGR002', unit: 'percentage', description: 'Percentage of youth with access to agricultural land', themeId: 'agriculture', methodology: 'FAO land tenure surveys', sourceDefault: 'FAO', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['land', 'access'], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'agr003', name: 'Youth Agribusiness Ownership', shortName: 'Agribusiness', code: 'AGR003', unit: 'percentage', description: 'Share of agribusinesses owned by youth', themeId: 'agriculture', methodology: 'Agricultural census data', sourceDefault: 'FAO', minValue: 0, maxValue: 50, isHigherBetter: true, isPublic: true, tags: ['agribusiness', 'ownership'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'agr001', name: 'Youth in Agriculture', shortName: 'Agri Employment', code: 'AGR001', unit: 'percentage', description: 'Share of youth employed in agriculture sector', themeId: 'employment', methodology: 'ILO sectoral employment data', sourceDefault: 'FAO', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['agriculture', 'employment'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'agr002', name: 'Youth Land Access', shortName: 'Land Access', code: 'AGR002', unit: 'percentage', description: 'Percentage of youth with access to agricultural land', themeId: 'employment', methodology: 'FAO land tenure surveys', sourceDefault: 'FAO', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['land', 'access'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'agr003', name: 'Youth Agribusiness Ownership', shortName: 'Agribusiness', code: 'AGR003', unit: 'percentage', description: 'Share of agribusinesses owned by youth', themeId: 'employment', methodology: 'Agricultural census data', sourceDefault: 'FAO', minValue: 0, maxValue: 50, isHigherBetter: true, isPublic: true, tags: ['agribusiness', 'ownership'], createdAt: new Date(), updatedAt: new Date() },
 
   // GENDER INDICATORS
-  { id: 'gen001', name: 'Gender Parity Index (Education)', shortName: 'GPI Education', code: 'GEN001', unit: 'index', description: 'Ratio of female to male enrollment in education', themeId: 'gender', methodology: 'UNESCO GPI methodology', sourceDefault: 'UNESCO', minValue: 0, maxValue: 2, isHigherBetter: true, isPublic: true, tags: ['gender', 'education', 'parity'], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'gen002', name: 'Female Youth Unemployment Gap', shortName: 'Female Unemployment Gap', code: 'GEN002', unit: 'percentage', description: 'Difference between female and male youth unemployment rates', themeId: 'gender', methodology: 'ILO gender gap calculation', sourceDefault: 'ILO', minValue: -50, maxValue: 50, isHigherBetter: false, isPublic: true, tags: ['gender', 'employment', 'gap'], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'gen003', name: 'Female Youth Labor Participation', shortName: 'Female Labor Rate', code: 'GEN003', unit: 'percentage', description: 'Labor force participation rate for female youth', themeId: 'gender', methodology: 'ILO methodology', sourceDefault: 'ILO', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['gender', 'labor', 'participation'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'gen001', name: 'Gender Parity Index (Education)', shortName: 'GPI Education', code: 'GEN001', unit: 'index', description: 'Ratio of female to male enrollment in education', themeId: 'health', methodology: 'UNESCO GPI methodology', sourceDefault: 'UNESCO', minValue: 0, maxValue: 2, isHigherBetter: true, isPublic: true, tags: ['gender', 'education', 'parity'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'gen002', name: 'Female Youth Unemployment Gap', shortName: 'Female Unemployment Gap', code: 'GEN002', unit: 'percentage', description: 'Difference between female and male youth unemployment rates', themeId: 'health', methodology: 'ILO gender gap calculation', sourceDefault: 'ILO', minValue: -50, maxValue: 50, isHigherBetter: false, isPublic: true, tags: ['gender', 'employment', 'gap'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'gen003', name: 'Female Youth Labor Participation', shortName: 'Female Labor Rate', code: 'GEN003', unit: 'percentage', description: 'Labor force participation rate for female youth', themeId: 'health', methodology: 'ILO methodology', sourceDefault: 'ILO', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['gender', 'labor', 'participation'], createdAt: new Date(), updatedAt: new Date() },
 
   // FINANCIAL INCLUSION INDICATORS
-  { id: 'fin001', name: 'Youth Bank Account Ownership', shortName: 'Bank Account', code: 'FIN001', unit: 'percentage', description: 'Percentage of youth with a bank account', themeId: 'finance', methodology: 'World Bank Global Findex', sourceDefault: 'World Bank', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['banking', 'financial inclusion'], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'fin002', name: 'Youth Mobile Money Usage', shortName: 'Mobile Money', code: 'FIN002', unit: 'percentage', description: 'Percentage of youth using mobile money services', themeId: 'finance', methodology: 'GSMA and World Bank Findex', sourceDefault: 'GSMA', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['mobile money', 'fintech'], createdAt: new Date(), updatedAt: new Date() },
-  { id: 'fin003', name: 'Youth Access to Credit', shortName: 'Credit Access', code: 'FIN003', unit: 'percentage', description: 'Percentage of youth with access to formal credit', themeId: 'finance', methodology: 'World Bank enterprise and household surveys', sourceDefault: 'World Bank', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['credit', 'loans', 'access'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'fin001', name: 'Youth Bank Account Ownership', shortName: 'Bank Account', code: 'FIN001', unit: 'percentage', description: 'Percentage of youth with a bank account', themeId: 'entrepreneurship', methodology: 'World Bank Global Findex', sourceDefault: 'World Bank', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['banking', 'financial inclusion'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'fin002', name: 'Youth Mobile Money Usage', shortName: 'Mobile Money', code: 'FIN002', unit: 'percentage', description: 'Percentage of youth using mobile money services', themeId: 'entrepreneurship', methodology: 'GSMA and World Bank Findex', sourceDefault: 'GSMA', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['mobile money', 'fintech'], createdAt: new Date(), updatedAt: new Date() },
+  { id: 'fin003', name: 'Youth Access to Credit', shortName: 'Credit Access', code: 'FIN003', unit: 'percentage', description: 'Percentage of youth with access to formal credit', themeId: 'entrepreneurship', methodology: 'World Bank enterprise and household surveys', sourceDefault: 'World Bank', minValue: 0, maxValue: 100, isHigherBetter: true, isPublic: true, tags: ['credit', 'loans', 'access'], createdAt: new Date(), updatedAt: new Date() },
 ];
 
 // ============================================
 // YOUTH INDEX DIMENSIONS
 // ============================================
 
+// AYO Youth Index — seven weighted dimensions. Total = 100%.
+// Source of truth for sub-indicator weights: apps/api/src/modules/youth-index/youth-index-weights.ts.
 export const YOUTH_INDEX_DIMENSIONS: YouthIndexDimension[] = [
   {
+    name: 'Youth Demography & Participation',
+    weight: 0.20,
+    color: '#2563EB',
+    indicators: ['youth-voter-turnout', 'youth-share-of-population', 'youth-political-participation-index', 'youth-seats-in-parliament', 'youth-trust-in-government-index', 'freedom-of-association-score'],
+    description: 'Population structure, civic participation, voter turnout, political representation.',
+  },
+  {
     name: 'Education',
-    weight: 0.25,
-    color: '#3B82F6',
-    indicators: ['edu001', 'edu002', 'edu003', 'edu005'],
-    description: 'Measures educational attainment, enrollment, and quality outcomes for youth',
+    weight: 0.15,
+    color: '#7C3AED',
+    indicators: ['youth-literacy-rate', 'secondary-school-net-enrollment-rate', 'tertiary-education-gross-enrollment-rate', 'school-dropout-rate', 'primary-enrollment-rate', 'education-budget-share-gdp', 'teacher-student-ratio'],
+    description: 'Literacy, enrollment, completion, and education spending.',
   },
   {
     name: 'Employment',
-    weight: 0.30,
-    color: '#F59E0B',
-    indicators: ['emp001', 'emp002', 'emp003', 'emp004'],
-    description: 'Assesses youth employment status, quality of work, and entrepreneurship',
+    weight: 0.15,
+    color: '#EA580C',
+    indicators: ['youth-unemployment-rate', 'youth-labor-force-participation-rate', 'youth-employment-to-population-ratio', 'youth-adult-unemployment-ratio', 'informal-employment-rate'],
+    description: 'Unemployment, labor-force participation, and decent-work signals.',
   },
   {
     name: 'Health',
-    weight: 0.25,
-    color: '#EF4444',
-    indicators: ['hlt001', 'hlt002', 'hlt003', 'hlt004'],
-    description: 'Evaluates health outcomes and healthcare access for youth populations',
+    weight: 0.15,
+    color: '#DC2626',
+    indicators: ['births-by-skilled-staff', 'physician-density', 'hiv-prevalence-rate-youth', 'yplwha-treatment-rate', 'youth-suicide-rate', 'contraceptive-prevalence-rate-youth', 'maternal-mortality-ratio', 'health-budget-share', 'youth-aids-deaths', 'youth-substance-abuse-deaths'],
+    description: 'Skilled care, disease burden, mortality, and health-system spending.',
   },
   {
-    name: 'Civic Engagement',
-    weight: 0.20,
-    color: '#8B5CF6',
-    indicators: ['civ001', 'civ002', 'civ003'],
-    description: 'Measures youth participation in governance and civil society',
+    name: 'Entrepreneurship',
+    weight: 0.15,
+    color: '#0891B2',
+    indicators: ['youth-startup-survival-rate', 'youth-microcredit-recipients', 'internet-access-households', 'getting-credit-rank', 'protecting-investors-rank', 'youth-ip-registrations', 'youth-entrepreneurship-rate', 'mobile-money-account-penetration', 'financial-literacy-rate'],
+    description: 'Startup environment, credit access, digital infrastructure, and IP.',
+  },
+  {
+    name: 'Peace & Security',
+    weight: 0.10,
+    color: '#16A34A',
+    indicators: ['youth-idps', 'youth-trafficking-victims', 'youth-extremism-deaths'],
+    description: 'Displacement, trafficking, and youth deaths from violent extremism.',
+  },
+  {
+    name: 'Access to Justice',
+    weight: 0.10,
+    color: '#9333EA',
+    indicators: ['youth-awaiting-trial', 'youth-imprisoned', 'juvenile-detentions'],
+    description: 'Pre-trial backlog, incarceration, and juvenile detention.',
   },
 ];
 

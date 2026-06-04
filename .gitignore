@@ -11,6 +11,13 @@ build
 uploads/
 apps/api/uploads/
 
+# Local-only DB snapshots + one-off migration plans (some are 16+ MB).
+# Kept on disk for rollback but don't ship in git history.
+apps/api/backups/
+
+# One-off diagnostic scripts (use apps/api/scripts/ for anything reusable).
+apps/api/check-db-audit.js
+
 # Environment
 .env
 .env.local

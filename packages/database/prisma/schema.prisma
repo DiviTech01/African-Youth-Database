@@ -51,13 +51,14 @@ enum Region {
 // ============ THEMES & INDICATORS ============
 
 model Theme {
-  id          String @id @default(cuid())
-  name        String @unique
-  slug        String @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
   description String
   icon        String
   color       String
   sortOrder   Int
+  weight      Float?  // YED Index weight as a fraction (e.g. 0.20 = 20%). Null = not scored.
 
   indicators Indicator[]
 }
@@ -128,11 +129,7 @@ model YouthIndexScore {
   id              String    @id @default(cuid())
   year            Int
   overallScore    Float
-  educationScore  Float
-  employmentScore Float
-  healthScore     Float
-  civicScore      Float
-  innovationScore Float
+  dimensionScores Json      // { "education": 72.5, "employment": 58.2, ... } keyed by theme slug
   rank            Int
   previousRank    Int?
   rankChange      Int?

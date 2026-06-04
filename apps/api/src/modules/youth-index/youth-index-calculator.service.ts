@@ -1,118 +1,31 @@
 /**
- * ============================================================
- * African Youth Index — Computation Engine
- * ============================================================
+ * African Youth Index — Computation Engine (7-theme rewrite)
  *
  * METHODOLOGY:
- * The Youth Empowerment & Development (YED) Score is a composite index
- * that ranks all 54 African Union member states across 5 dimensions:
- *
- *   1. Education       (25%) — literacy, enrollment, completion, spending
- *   2. Employment      (30%) — unemployment, participation, NEET, vulnerability
- *   3. Health          (25%) — life expectancy, mortality, fertility, spending
- *   4. Civic           (10%) — voice/accountability, corruption control, gov effectiveness
- *   5. Innovation      (10%) — internet, mobile, R&D spending
+ *   Composite index over 7 user-mandated themes with weights from DB (Theme.weight):
+ *     Youth Demography & Participation 20% | Education 15% | Employment 15% |
+ *     Health 15% | Entrepreneurship 15% | Peace & Security 10% | Access to Justice 10%
+ *   Sub-weights per theme live in ./youth-index-weights.ts.
  *
  * NORMALIZATION:
- *   Min-max normalization to 0-100 scale using actual data bounds per year.
- *   - "higher-is-better" indicators:  norm = ((val - min) / (max - min)) * 100
- *   - "lower-is-better"  indicators:  norm = ((max - val) / (max - min)) * 100
+ *   Min-max per indicator across countries for the same year, to 0-100.
+ *     higher-is-better: ((val - min) / (max - min)) * 100
+ *     lower-is-better:  ((max - val) / (max - min)) * 100
+ *   Range==0 → 50 (all countries identical).
  *
  * MISSING DATA:
- *   - Missing indicator → redistribute its weight among remaining indicators
- *     in the same dimension.
- *   - Missing entire dimension → use regional average for that dimension.
- *     If no regional data, default to 50 (neutral).
+ *   Missing indicator → weight redistributed to remaining sub-indicators.
+ *   Missing entire theme → regional average; if none, 50 (neutral).
  *
- * RANKING:
- *   Countries ranked by descending overall score (rank 1 = highest score).
- *   Percentile = ((totalCountries - rank) / totalCountries) * 100.
- *   Tier assigned by percentile thresholds (HIGH ≥80, MEDIUM_HIGH ≥60, etc.).
- *   Rank change computed against the previous year's results.
- *
- * ============================================================
+ * STORAGE:
+ *   Per-theme scores stored in YouthIndexScore.dimensionScores (Json, keyed by theme slug).
  */
 
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../common/cache.service';
 import { DEFAULT_AGE_GROUP } from '../../shared/constants';
-
-type Direction = 'higher-is-better' | 'lower-is-better';
-
-interface IndicatorDef {
-  slug: string;
-  direction: Direction;
-  weight: number;
-}
-
-interface DimensionDef {
-  weight: number;
-  indicators: IndicatorDef[];
-}
-
-// Slugs must match the actual indicator slugs in the database.
-// The World Bank import script mapped WB codes to these seed slugs.
-const DIMENSIONS: Record<string, DimensionDef> = {
-  education: {
-    weight: 0.25,
-    indicators: [
-      { slug: 'youth-literacy-rate', direction: 'higher-is-better', weight: 0.3 },
-      { slug: 'secondary-school-net-enrollment-rate', direction: 'higher-is-better', weight: 0.25 },
-      { slug: 'tertiary-education-gross-enrollment-rate', direction: 'higher-is-better', weight: 0.2 },
-      { slug: 'primary-completion-rate', direction: 'higher-is-better', weight: 0.15 },
-      { slug: 'education-expenditure-gdp', direction: 'higher-is-better', weight: 0.1 },
-    ],
-  },
-  employment: {
-    weight: 0.30,
-    indicators: [
-      { slug: 'youth-unemployment-rate', direction: 'lower-is-better', weight: 0.35 },
-      { slug: 'youth-labor-force-participation-rate', direction: 'higher-is-better', weight: 0.25 },
-      { slug: 'youth-neet-rate', direction: 'lower-is-better', weight: 0.25 },
-      { slug: 'informal-employment-rate', direction: 'lower-is-better', weight: 0.15 },
-    ],
-  },
-  health: {
-    weight: 0.25,
-    indicators: [
-      // WB imported life expectancy under slug 'stunting-prevalence-under-5'
-      { slug: 'stunting-prevalence-under-5', direction: 'higher-is-better', weight: 0.25 },
-      { slug: 'youth-mortality-rate', direction: 'lower-is-better', weight: 0.2 },
-      { slug: 'adolescent-fertility-rate', direction: 'lower-is-better', weight: 0.2 },
-      // WB imported health expenditure under slug 'youth-healthcare-access'
-      { slug: 'youth-healthcare-access', direction: 'higher-is-better', weight: 0.15 },
-      { slug: 'maternal-mortality-ratio', direction: 'lower-is-better', weight: 0.2 },
-    ],
-  },
-  civic: {
-    weight: 0.10,
-    indicators: [
-      // WB governance indicators mapped to these seed slugs
-      { slug: 'freedom-of-association-score', direction: 'higher-is-better', weight: 0.35 },
-      { slug: 'youth-trust-in-government-index', direction: 'higher-is-better', weight: 0.35 },
-      { slug: 'youth-political-participation-index', direction: 'higher-is-better', weight: 0.3 },
-    ],
-  },
-  innovation: {
-    weight: 0.10,
-    indicators: [
-      { slug: 'internet-penetration-rate', direction: 'higher-is-better', weight: 0.4 },
-      { slug: 'mobile-cellular-subscriptions', direction: 'higher-is-better', weight: 0.3 },
-      // WB imported R&D expenditure under slug 'ict-development-index'
-      { slug: 'ict-development-index', direction: 'higher-is-better', weight: 0.3 },
-    ],
-  },
-};
-
-// Map dimension key to YouthIndexScore column name
-const DIMENSION_SCORE_FIELD: Record<string, string> = {
-  education: 'educationScore',
-  employment: 'employmentScore',
-  health: 'healthScore',
-  civic: 'civicScore',
-  innovation: 'innovationScore',
-};
+import { SUB_WEIGHTS, ALL_INDEX_INDICATOR_SLUGS } from './youth-index-weights';
 
 interface CountryDimensionScores {
   countryId: string;
@@ -130,10 +43,6 @@ export class YouthIndexCalculatorService {
     private cache: CacheService,
   ) {}
 
-  /**
-   * Compute the Youth Index for a single year.
-   * Fetches all relevant indicator values, normalizes, scores, ranks, and upserts.
-   */
   async computeForYear(year: number): Promise<{
     year: number;
     countriesComputed: number;
@@ -143,25 +52,25 @@ export class YouthIndexCalculatorService {
   }> {
     this.logger.log(`Computing Youth Index for year ${year}...`);
 
-    // 1. Get all countries with their regions
     const countries = await this.prisma.country.findMany({
       select: { id: true, name: true, region: true },
     });
 
-    // 2. Resolve indicator slugs → IDs
-    const allSlugs = Object.values(DIMENSIONS).flatMap((d) =>
-      d.indicators.map((i) => i.slug),
-    );
+    // Theme weights from DB (source of truth)
+    const themes = await this.prisma.theme.findMany({
+      where: { weight: { not: null } },
+      select: { slug: true, weight: true },
+    });
+    const themeWeight = new Map<string, number>(themes.map((t) => [t.slug, t.weight!]));
+
+    // Resolve indicator slugs → IDs
     const indicators = await this.prisma.indicator.findMany({
-      where: { slug: { in: allSlugs } },
+      where: { slug: { in: ALL_INDEX_INDICATOR_SLUGS } },
       select: { id: true, slug: true },
     });
     const slugToId = new Map(indicators.map((i) => [i.slug, i.id]));
-
-    // 3. Fetch all indicator values for this year (TOTAL gender, AU 15-35).
-    // Filtering ageGroup keeps the Youth Index comparable across countries even
-    // if some carry legacy 15-24 rows.
     const indicatorIds = indicators.map((i) => i.id);
+
     const allValues = await this.prisma.indicatorValue.findMany({
       where: {
         year,
@@ -172,256 +81,184 @@ export class YouthIndexCalculatorService {
       select: { countryId: true, indicatorId: true, value: true },
     });
 
-    // Build lookup: indicatorId → countryId → value
+    // indicatorId → countryId → value
     const valueMap = new Map<string, Map<string, number>>();
     for (const v of allValues) {
-      if (!valueMap.has(v.indicatorId)) {
-        valueMap.set(v.indicatorId, new Map());
+      let m = valueMap.get(v.indicatorId);
+      if (!m) {
+        m = new Map();
+        valueMap.set(v.indicatorId, m);
       }
-      valueMap.get(v.indicatorId)!.set(v.countryId, v.value);
+      m.set(v.countryId, v.value);
     }
 
-    // 4. Compute min/max per indicator (for normalization)
+    // min/max per indicator
     const minMax = new Map<string, { min: number; max: number }>();
     for (const [indId, countryValues] of valueMap) {
       const vals = Array.from(countryValues.values());
       if (vals.length === 0) continue;
-      minMax.set(indId, {
-        min: Math.min(...vals),
-        max: Math.max(...vals),
-      });
+      minMax.set(indId, { min: Math.min(...vals), max: Math.max(...vals) });
     }
 
-    // 5. Normalize and compute dimension scores per country
+    // Compute dimension scores per country
     const countryScores: CountryDimensionScores[] = [];
-
     for (const country of countries) {
       const dimensions: Record<string, number | null> = {};
-
-      for (const [dimKey, dimDef] of Object.entries(DIMENSIONS)) {
+      for (const themeSlug of Object.keys(SUB_WEIGHTS)) {
+        const subs = SUB_WEIGHTS[themeSlug];
         let weightedSum = 0;
         let totalWeight = 0;
-
-        for (const indDef of dimDef.indicators) {
-          const indId = slugToId.get(indDef.slug);
+        for (const sub of subs) {
+          const indId = slugToId.get(sub.slug);
           if (!indId) continue;
-
           const mm = minMax.get(indId);
           if (!mm) continue;
-
-          const countryValues = valueMap.get(indId);
-          const rawValue = countryValues?.get(country.id);
-          if (rawValue === undefined || rawValue === null) continue;
-
-          // Normalize
+          const raw = valueMap.get(indId)?.get(country.id);
+          if (raw === undefined || raw === null) continue;
           const range = mm.max - mm.min;
+          // Soft-floor normalization: map min-max into [5, 100] instead of
+          // [0, 100]. The worst country gets 5, not 0 — preserves relative
+          // ranking but prevents the "looks like missing data" 0 reading.
+          // Standard practice in composite indices (UNDP HDI uses similar
+          // bounding to avoid degenerate extreme values).
+          const FLOOR = 5;
+          const SCALE = 100 - FLOOR; // 95
           let normalized: number;
-          if (range === 0) {
-            normalized = 50; // all countries have same value
-          } else if (indDef.direction === 'higher-is-better') {
-            normalized = ((rawValue - mm.min) / range) * 100;
-          } else {
-            normalized = ((mm.max - rawValue) / range) * 100;
-          }
-
-          weightedSum += normalized * indDef.weight;
-          totalWeight += indDef.weight;
+          if (range === 0) normalized = 50;
+          else if (sub.direction === 'higher-is-better') normalized = FLOOR + ((raw - mm.min) / range) * SCALE;
+          else normalized = FLOOR + ((mm.max - raw) / range) * SCALE;
+          weightedSum += normalized * sub.weight;
+          totalWeight += sub.weight;
         }
-
-        if (totalWeight > 0) {
-          // Redistribute weight: scale by (1 / totalWeight) to account for missing indicators
-          dimensions[dimKey] = Math.round((weightedSum / totalWeight) * 100) / 100;
-        } else {
-          dimensions[dimKey] = null; // entire dimension missing
-        }
+        dimensions[themeSlug] = totalWeight > 0
+          ? Math.round((weightedSum / totalWeight) * 100) / 100
+          : null;
       }
-
-      countryScores.push({
-        countryId: country.id,
-        region: country.region,
-        dimensions,
-        overallScore: 0, // computed below
-      });
+      countryScores.push({ countryId: country.id, region: country.region, dimensions, overallScore: 0 });
     }
 
-    // 6. Fill null dimensions with regional averages
-    // First compute regional averages per dimension
+    // Regional averages to fill missing theme scores
     const regionDimAvg = new Map<string, Map<string, { sum: number; count: number }>>();
     for (const cs of countryScores) {
-      if (!regionDimAvg.has(cs.region)) {
-        regionDimAvg.set(cs.region, new Map());
+      let regionMap = regionDimAvg.get(cs.region);
+      if (!regionMap) {
+        regionMap = new Map();
+        regionDimAvg.set(cs.region, regionMap);
       }
-      const regionMap = regionDimAvg.get(cs.region)!;
-      for (const [dimKey, score] of Object.entries(cs.dimensions)) {
-        if (score !== null) {
-          if (!regionMap.has(dimKey)) {
-            regionMap.set(dimKey, { sum: 0, count: 0 });
-          }
-          const entry = regionMap.get(dimKey)!;
-          entry.sum += score;
-          entry.count += 1;
-        }
+      for (const [k, v] of Object.entries(cs.dimensions)) {
+        if (v === null) continue;
+        const entry = regionMap.get(k) ?? { sum: 0, count: 0 };
+        entry.sum += v;
+        entry.count += 1;
+        regionMap.set(k, entry);
       }
     }
-
-    // Fill nulls
     for (const cs of countryScores) {
-      for (const dimKey of Object.keys(DIMENSIONS)) {
-        if (cs.dimensions[dimKey] === null) {
-          const regionMap = regionDimAvg.get(cs.region);
-          const regionEntry = regionMap?.get(dimKey);
-          if (regionEntry && regionEntry.count > 0) {
-            cs.dimensions[dimKey] = Math.round((regionEntry.sum / regionEntry.count) * 100) / 100;
-          } else {
-            cs.dimensions[dimKey] = 50; // neutral fallback
-          }
-        }
+      for (const themeSlug of Object.keys(SUB_WEIGHTS)) {
+        if (cs.dimensions[themeSlug] !== null) continue;
+        const regionMap = regionDimAvg.get(cs.region);
+        const e = regionMap?.get(themeSlug);
+        cs.dimensions[themeSlug] = e && e.count > 0
+          ? Math.round((e.sum / e.count) * 100) / 100
+          : 50;
       }
     }
 
-    // 7. Compute overall scores
+    // Overall score = sum(dim * themeWeight)
     for (const cs of countryScores) {
-      let overallScore = 0;
-      for (const [dimKey, dimDef] of Object.entries(DIMENSIONS)) {
-        overallScore += (cs.dimensions[dimKey] ?? 50) * dimDef.weight;
+      let overall = 0;
+      for (const [themeSlug, dim] of Object.entries(cs.dimensions)) {
+        const w = themeWeight.get(themeSlug) ?? 0;
+        overall += (dim ?? 50) * w;
       }
-      cs.overallScore = Math.round(overallScore * 100) / 100;
+      cs.overallScore = Math.round(overall * 100) / 100;
     }
 
-    // 8. Rank by overall score (descending)
+    // Rank
     countryScores.sort((a, b) => b.overallScore - a.overallScore);
-    const totalCountries = countryScores.length;
+    const total = countryScores.length;
 
-    // 9. Get previous year's ranks for rank change computation
-    const previousRanks = new Map<string, number>();
-    const prevScores = await this.prisma.youthIndexScore.findMany({
+    // Previous-year ranks (for rank change)
+    const prev = await this.prisma.youthIndexScore.findMany({
       where: { year: year - 1 },
       select: { countryId: true, rank: true },
     });
-    for (const ps of prevScores) {
-      previousRanks.set(ps.countryId, ps.rank);
-    }
+    const previousRanks = new Map(prev.map((p) => [p.countryId, p.rank]));
 
-    // 10. Assign tier based on percentile
-    const getTier = (percentile: number) => {
-      if (percentile >= 80) return 'HIGH';
-      if (percentile >= 60) return 'MEDIUM_HIGH';
-      if (percentile >= 40) return 'MEDIUM';
-      if (percentile >= 20) return 'MEDIUM_LOW';
-      return 'LOW';
-    };
+    const tierOf = (pct: number) =>
+      pct >= 80 ? 'HIGH' : pct >= 60 ? 'MEDIUM_HIGH' : pct >= 40 ? 'MEDIUM' : pct >= 20 ? 'MEDIUM_LOW' : 'LOW';
 
-    // 11. Build upsert data
     const countryNameMap = new Map(countries.map((c) => [c.id, c.name]));
-    const upsertData = countryScores.map((cs, index) => {
-      const rank = index + 1;
-      const percentile = Math.round(((totalCountries - rank) / totalCountries) * 10000) / 100;
-      const prevRank = previousRanks.get(cs.countryId) ?? null;
-      const rankChange = prevRank !== null ? prevRank - rank : null;
 
-      return {
+    // Upsert
+    for (let i = 0; i < countryScores.length; i++) {
+      const cs = countryScores[i];
+      const rank = i + 1;
+      const percentile = Math.round(((total - rank) / total) * 10000) / 100;
+      const prevRank = previousRanks.get(cs.countryId) ?? null;
+      const data = {
         countryId: cs.countryId,
         year,
         overallScore: cs.overallScore,
-        educationScore: cs.dimensions.education ?? 50,
-        employmentScore: cs.dimensions.employment ?? 50,
-        healthScore: cs.dimensions.health ?? 50,
-        civicScore: cs.dimensions.civic ?? 50,
-        innovationScore: cs.dimensions.innovation ?? 50,
+        dimensionScores: cs.dimensions as any,
         rank,
         previousRank: prevRank,
-        rankChange,
+        rankChange: prevRank !== null ? prevRank - rank : null,
         percentile,
-        tier: getTier(percentile) as 'HIGH' | 'MEDIUM_HIGH' | 'MEDIUM' | 'MEDIUM_LOW' | 'LOW',
+        tier: tierOf(percentile) as 'HIGH' | 'MEDIUM_HIGH' | 'MEDIUM' | 'MEDIUM_LOW' | 'LOW',
       };
-    });
-
-    // 12. Upsert all scores
-    for (const data of upsertData) {
       await this.prisma.youthIndexScore.upsert({
-        where: {
-          countryId_year: { countryId: data.countryId, year: data.year },
-        },
+        where: { countryId_year: { countryId: cs.countryId, year } },
+        create: data,
         update: {
           overallScore: data.overallScore,
-          educationScore: data.educationScore,
-          employmentScore: data.employmentScore,
-          healthScore: data.healthScore,
-          civicScore: data.civicScore,
-          innovationScore: data.innovationScore,
+          dimensionScores: data.dimensionScores,
           rank: data.rank,
           previousRank: data.previousRank,
           rankChange: data.rankChange,
           percentile: data.percentile,
           tier: data.tier,
         },
-        create: data,
       });
     }
 
-    // 13. Clear related caches
     this.cache.clearPrefix('youth-index');
 
-    // 14. Summary
-    const scores = upsertData.map((d) => d.overallScore);
-    const avgScore = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100;
-    const top = upsertData[0];
-    const bottom = upsertData[upsertData.length - 1];
-
+    const scores = countryScores.map((c) => c.overallScore);
+    const avg = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100;
+    const top = countryScores[0];
+    const bottom = countryScores[countryScores.length - 1];
     const result = {
       year,
-      countriesComputed: upsertData.length,
-      averageScore: avgScore,
-      topPerformer: {
-        name: countryNameMap.get(top.countryId) || 'Unknown',
-        score: top.overallScore,
-      },
-      bottomPerformer: {
-        name: countryNameMap.get(bottom.countryId) || 'Unknown',
-        score: bottom.overallScore,
-      },
+      countriesComputed: countryScores.length,
+      averageScore: avg,
+      topPerformer: { name: countryNameMap.get(top.countryId) || 'Unknown', score: top.overallScore },
+      bottomPerformer: { name: countryNameMap.get(bottom.countryId) || 'Unknown', score: bottom.overallScore },
     };
-
     this.logger.log(
-      `Year ${year}: ${result.countriesComputed} countries, avg=${result.averageScore}, ` +
+      `Year ${year}: ${result.countriesComputed} countries, avg=${avg}, ` +
       `top=${result.topPerformer.name} (${result.topPerformer.score}), ` +
       `bottom=${result.bottomPerformer.name} (${result.bottomPerformer.score})`,
     );
-
     return result;
   }
 
-  /**
-   * Compute the Youth Index for all years from 2000 to 2024.
-   * Runs sequentially so rank changes can reference the previous year.
-   */
   async computeAll(): Promise<{
     yearsComputed: number;
     results: { year: number; countriesComputed: number; averageScore: number }[];
   }> {
-    this.logger.log('Computing Youth Index for all years (2000-2024)...');
-
+    this.logger.log('Computing Youth Index for all years with data...');
+    const yearsWithData = await this.prisma.indicatorValue.groupBy({
+      by: ['year'],
+      where: { gender: 'TOTAL', ageGroup: DEFAULT_AGE_GROUP },
+      _count: { _all: true },
+      orderBy: { year: 'asc' },
+    });
     const results: { year: number; countriesComputed: number; averageScore: number }[] = [];
-
-    for (let year = 2000; year <= 2024; year++) {
-      // Check if there's any data for this year (15-35 AU only)
-      const dataCount = await this.prisma.indicatorValue.count({
-        where: { year, gender: 'TOTAL', ageGroup: DEFAULT_AGE_GROUP },
-      });
-
-      if (dataCount === 0) {
-        this.logger.log(`Skipping year ${year} — no data`);
-        continue;
-      }
-
-      const result = await this.computeForYear(year);
-      results.push({
-        year: result.year,
-        countriesComputed: result.countriesComputed,
-        averageScore: result.averageScore,
-      });
+    for (const y of yearsWithData) {
+      const r = await this.computeForYear(y.year);
+      results.push({ year: r.year, countriesComputed: r.countriesComputed, averageScore: r.averageScore });
     }
-
     this.logger.log(`Computation complete: ${results.length} years processed`);
     return { yearsComputed: results.length, results };
   }

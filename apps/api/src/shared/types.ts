@@ -98,15 +98,22 @@ export interface IndicatorValue {
   indicatorName?: string;
 }
 
+export type ThemeSlug =
+  | 'youth-demography-participation'
+  | 'education'
+  | 'employment'
+  | 'health'
+  | 'entrepreneurship'
+  | 'peace-security'
+  | 'access-to-justice';
+
+export type DimensionScores = Record<ThemeSlug, number>;
+
 export interface YouthIndexScore {
   id: string;
   year: number;
   overallScore: number;
-  educationScore: number;
-  employmentScore: number;
-  healthScore: number;
-  civicScore: number;
-  innovationScore: number;
+  dimensionScores: DimensionScores;
   rank: number;
   previousRank?: number;
   rankChange?: number;
@@ -318,11 +325,7 @@ export interface YouthIndexRankedCountry {
   flagEmoji?: string;
   region: Region;
   overallScore: number;
-  educationScore: number;
-  employmentScore: number;
-  healthScore: number;
-  civicScore: number;
-  innovationScore: number;
+  dimensions: DimensionScores;
   previousRank?: number;
   rankChange?: number;
   percentile: number;

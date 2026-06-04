@@ -20,6 +20,35 @@ function layout(title: string, body: string): string {
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>${title}</title>
 <style>
+  /* Base typography for the body content — covers AI-generated tags that
+     come back without inline styles (Claude returns plain <p>/<h3>/<ul>/etc).
+     Without this, default browser/email-client colours render headings and
+     paragraph text as black, invisible against the dark card. */
+  .ayo-body, .ayo-body p, .ayo-body li, .ayo-body td {
+    color: #d0d0d0;
+    font-size: 15px;
+    line-height: 1.75;
+  }
+  .ayo-body p { margin: 0 0 18px; }
+  .ayo-body h1, .ayo-body h2, .ayo-body h3, .ayo-body h4 {
+    color: #ffffff;
+    font-weight: 700;
+    margin: 24px 0 12px;
+    line-height: 1.3;
+  }
+  .ayo-body h1 { font-size: 22px; }
+  .ayo-body h2 { font-size: 19px; }
+  .ayo-body h3 { font-size: 17px; }
+  .ayo-body h4 { font-size: 15px; }
+  .ayo-body strong, .ayo-body b { color: #ffffff; }
+  .ayo-body em, .ayo-body i { color: #bdbdbd; }
+  .ayo-body ul, .ayo-body ol { margin: 0 0 18px; padding-left: 22px; }
+  .ayo-body li { margin: 0 0 6px; }
+  .ayo-body a { color: #D4A017; text-decoration: underline; }
+  .ayo-body blockquote {
+    margin: 16px 0; padding: 10px 16px;
+    border-left: 3px solid #D4A017; color: #bdbdbd;
+  }
   @media screen and (max-width: 480px) {
     .ayo-card { width: 100% !important; border-radius: 0 !important; }
     .ayo-h    { padding: 28px 22px 20px !important; }
@@ -37,8 +66,10 @@ function layout(title: string, body: string): string {
   <tr><td class="ayo-h" style="padding:40px 44px 28px;border-bottom:1px solid #222;">
     <span style="font-size:22px;font-weight:700;color:${BRAND.gold};letter-spacing:-0.01em;">African Youth Observatory</span>
   </td></tr>
-  <!-- Body -->
-  <tr><td class="ayo-body" style="padding:40px 44px;">
+  <!-- Body — inline color + typography so clients that strip <style>
+       (older Outlook, some webmail) still inherit a visible light text
+       colour into AI-generated unstyled <p>/<h3>/<ul> children. -->
+  <tr><td class="ayo-body" style="padding:40px 44px;color:#d0d0d0;font-size:15px;line-height:1.75;">
     ${body}
   </td></tr>
   <!-- Footer -->
@@ -71,6 +102,30 @@ function esc(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+// Crude HTML → plain text. Good enough for the multipart/alternative text
+// part most spam filters expect: they don't compare it to the HTML, they
+// just want a non-trivial text body to exist. Without one, more mail lands
+// in Promotions / spam.
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&mdash;/g, '—')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
 }
 
 // Renders the "Attached resources" block. We link to files rather than
@@ -354,7 +409,16 @@ export class MailService {
       this.logger.warn('Briefing not sent — Resend not configured');
       throw new Error('Email service not configured (RESEND_API_KEY missing)');
     }
-    return this.send(opts.to, opts.subject, this.renderBriefing(opts));
+    // RFC 8058 one-click unsubscribe — Gmail uses this as a strong signal
+    // to keep the email out of Promotions and to show the native "Unsubscribe"
+    // button next to the sender. We only set it for subscriber sends because
+    // user-broadcast emails don't have a per-recipient token.
+    const headers: Record<string, string> = {};
+    if (opts.unsubscribeUrl) {
+      headers['List-Unsubscribe'] = `<${opts.unsubscribeUrl}>`;
+      headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+    }
+    return this.send(opts.to, opts.subject, this.renderBriefing(opts), { headers });
   }
 
   /** True when Resend is wired up — lets callers fail fast before a broadcast. */
@@ -363,8 +427,16 @@ export class MailService {
   }
 
   // ── Core Send ──────────────────────────────────────────────
+  // Every send goes through here so we can apply the deliverability defaults
+  // (Reply-To, plain-text fallback, custom headers) in one place. The text
+  // alternative is auto-derived from the HTML when not supplied.
 
-  private async send(to: string, subject: string, html: string) {
+  private async send(
+    to: string,
+    subject: string,
+    html: string,
+    extras: { headers?: Record<string, string>; text?: string; replyTo?: string } = {},
+  ) {
     if (!this.resend) {
       this.logger.warn('Email not sent — Resend not configured');
       return;
@@ -375,6 +447,14 @@ export class MailService {
         to,
         subject,
         html,
+        // Multipart/alternative text part — required for good deliverability.
+        // Many anti-spam systems (and Gmail's Promotions classifier) downgrade
+        // HTML-only emails.
+        text: extras.text ?? htmlToText(html),
+        // A monitored Reply-To improves trust signals. Falls back to the admin
+        // inbox when REPLY_TO_EMAIL isn't set on Render.
+        replyTo: extras.replyTo ?? process.env.REPLY_TO_EMAIL ?? this.adminEmail,
+        headers: extras.headers,
       });
       this.logger.log(`Email sent to ${to}: ${subject}`);
       return result;

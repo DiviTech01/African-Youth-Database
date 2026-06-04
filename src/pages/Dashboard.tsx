@@ -66,8 +66,11 @@ const CHART_COLORS = [
   '#F43F5E', // rose
 ];
 
-const STORAGE_KEY = 'ayd_user_widgets_v4';
-const LEGACY_STORAGE_KEYS = ['ayd_user_widgets_v1', 'ayd_user_widgets_v2', 'ayd_user_widgets_v3'];
+// v5 bump: reorders the default widgets (Cross-Dimensional Profile first,
+// Employment Trends second). Existing users on v1–v4 get migrated to the
+// new defaults on next load via the LEGACY_STORAGE_KEYS sweep.
+const STORAGE_KEY = 'ayd_user_widgets_v5';
+const LEGACY_STORAGE_KEYS = ['ayd_user_widgets_v1', 'ayd_user_widgets_v2', 'ayd_user_widgets_v3', 'ayd_user_widgets_v4'];
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -114,11 +117,11 @@ const RADAR_COUNTRIES = ['Nigeria', 'Kenya', 'South Africa', 'Egypt', 'Ghana'];
 const defaultWidgets: Widget[] = [
   {
     id: 'w1',
-    title: 'Youth Literacy Rates',
-    chartType: 'bar',
-    indicator: 'Youth Literacy Rate',
-    countries: ['Nigeria', 'Kenya', 'South Africa'],
-    data: generateTimeSeriesData(['Nigeria', 'Kenya', 'South Africa']),
+    title: 'Cross-Dimensional Profile',
+    chartType: 'radar',
+    indicator: 'Multi-dimension comparison',
+    countries: RADAR_COUNTRIES,
+    data: generateRadarData(RADAR_COUNTRIES),
   },
   {
     id: 'w2',
@@ -130,37 +133,38 @@ const defaultWidgets: Widget[] = [
   },
   {
     id: 'w3',
+    title: 'Youth Literacy Rates',
+    chartType: 'bar',
+    indicator: 'Youth Literacy Rate',
+    countries: ['Nigeria', 'Kenya', 'South Africa'],
+    data: generateTimeSeriesData(['Nigeria', 'Kenya', 'South Africa']),
+  },
+  {
+    id: 'w4',
     title: 'Health Access Overview',
     chartType: 'area',
     indicator: 'Health Access Index',
     countries: HEALTH_COUNTRIES,
     data: generateTimeSeriesData(HEALTH_COUNTRIES),
   },
-  {
-    id: 'w4',
-    title: 'Cross-Dimensional Profile',
-    chartType: 'radar',
-    indicator: 'Multi-dimension comparison',
-    countries: RADAR_COUNTRIES,
-    data: generateRadarData(RADAR_COUNTRIES),
-  },
 ];
 
-// Detects any prior default snapshot — 3-widget pre-radar (v1/v2) or
-// 4-widget radar default (v3). When matched we discard so the user picks up
-// the current defaults. Custom layouts (renamed/added/removed widgets) are
-// preserved.
+// Detects layouts that look like any prior default snapshot (regardless of
+// order) so we can discard them and let the current `defaultWidgets` load.
+// Matches if every title in the layout is one of the known default titles
+// AND no extra widgets exist — i.e. the user didn't customise anything.
+// Handles all of: v1/v2 (3-widget pre-radar), v3 (4-widget radar tail),
+// v4 (4-widget pre-Cross-Dim-first), v5 (current). Custom layouts (renamed,
+// added, removed widgets) are preserved.
 function isStaleDefaults(widgets: Widget[]): boolean {
   if (widgets.length !== 3 && widgets.length !== 4) return false;
-  const [w1, w2, w3, w4] = widgets;
-  const baseMatches =
-    w1?.id === 'w1' && w1?.title === 'Youth Literacy Rates' &&
-    w2?.id === 'w2' && w2?.title === 'Employment Trends' &&
-    w3?.id === 'w3' && w3?.title === 'Health Access Overview';
-  if (!baseMatches) return false;
-  if (widgets.length === 3) return true;
-  // 4-widget case: must match the v3 radar default
-  return w4?.id === 'w4' && w4?.title === 'Cross-Dimensional Profile';
+  const KNOWN_DEFAULT_TITLES = new Set([
+    'Cross-Dimensional Profile',
+    'Employment Trends',
+    'Youth Literacy Rates',
+    'Health Access Overview',
+  ]);
+  return widgets.every((w) => w?.title && KNOWN_DEFAULT_TITLES.has(w.title));
 }
 
 // ── Chart rendering ────────────────────────────────────────────────────────────
@@ -306,11 +310,18 @@ const Dashboard = () => {
   //   into v2 unchanged. Legacy keys are then cleared.
   useEffect(() => {
     try {
-      const v2 = localStorage.getItem(STORAGE_KEY);
-      if (v2) {
-        const parsed = JSON.parse(v2) as Widget[];
+      const current = localStorage.getItem(STORAGE_KEY);
+      if (current) {
+        const parsed = JSON.parse(current) as Widget[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setWidgets(parsed);
+          // Even the v5 entry can be a default-shaped layout migrated as-is
+          // from a legacy key — discard it so the latest defaultWidgets order
+          // (Cross-Dimensional Profile first) wins. Custom layouts pass through.
+          if (isStaleDefaults(parsed)) {
+            localStorage.removeItem(STORAGE_KEY);
+          } else {
+            setWidgets(parsed);
+          }
         }
       } else {
         for (const legacy of LEGACY_STORAGE_KEYS) {

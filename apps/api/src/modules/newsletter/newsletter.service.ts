@@ -570,7 +570,11 @@ export class NewsletterService {
       });
       ctx += `\nLatest Youth Index year: ${latest.year}.\nTop 5 ranked countries:\n`;
       for (const t of top) {
-        ctx += `- #${t.rank} ${t.country?.name ?? 'Unknown'} — score ${t.overallScore.toFixed(1)} (Education ${t.educationScore.toFixed(1)}, Employment ${t.employmentScore.toFixed(1)}, Health ${t.healthScore.toFixed(1)})\n`;
+        const d = (t.dimensionScores && typeof t.dimensionScores === 'object')
+          ? (t.dimensionScores as Record<string, number>)
+          : {};
+        const fmt = (slug: string) => (typeof d[slug] === 'number' ? d[slug] : 50).toFixed(1);
+        ctx += `- #${t.rank} ${t.country?.name ?? 'Unknown'} — score ${t.overallScore.toFixed(1)} (Education ${fmt('education')}, Employment ${fmt('employment')}, Health ${fmt('health')}, Entrepreneurship ${fmt('entrepreneurship')})\n`;
       }
       // Biggest movers up
       const movers = await this.prisma.youthIndexScore.findMany({

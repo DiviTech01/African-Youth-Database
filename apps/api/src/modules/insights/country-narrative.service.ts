@@ -14,6 +14,39 @@ interface CountryNarrative {
   source: 'ai' | 'rule-based';
 }
 
+const NARRATIVE_THEME_LABELS: Record<string, string> = {
+  'youth-demography-participation': 'Youth Demography & Participation',
+  'education': 'Education',
+  'employment': 'Employment',
+  'health': 'Health',
+  'entrepreneurship': 'Entrepreneurship',
+  'peace-security': 'Peace & Security',
+  'access-to-justice': 'Access to Justice',
+};
+
+type NarrativeIndex = {
+  overallScore: number;
+  rank: number;
+  tier: string;
+  dimensionScores: unknown;
+  year: number;
+};
+
+function narrativeDimsArray(yi: NarrativeIndex): { name: string; slug: string; score: number }[] {
+  const d = (yi.dimensionScores && typeof yi.dimensionScores === 'object')
+    ? (yi.dimensionScores as Record<string, number>)
+    : {};
+  return Object.keys(NARRATIVE_THEME_LABELS).map((slug) => ({
+    name: NARRATIVE_THEME_LABELS[slug],
+    slug,
+    score: typeof d[slug] === 'number' ? d[slug] : 50,
+  }));
+}
+
+function narrativeDimsLine(yi: NarrativeIndex): string {
+  return narrativeDimsArray(yi).map((d) => `${d.name}: ${d.score.toFixed(1)}`).join(' | ');
+}
+
 @Injectable()
 export class CountryNarrativeService {
   private readonly logger = new Logger(CountryNarrativeService.name);
@@ -107,7 +140,7 @@ export class CountryNarrativeService {
 
   private async tryAiNarrative(
     country: { id: string; name: string; region: string; flagEmoji: string | null },
-    latestIndex: { overallScore: number; rank: number; tier: string; educationScore: number; employmentScore: number; healthScore: number; civicScore: number; innovationScore: number; year: number } | null,
+    latestIndex: NarrativeIndex | null,
     indexHistory: { year: number; overallScore: number; rank: number }[],
     indicators: { indicatorId: string; value: number; year: number; indicator: { name: string; unit: string; theme: { name: string } } }[],
     regionalAvg: Map<string, number>,
@@ -120,7 +153,7 @@ export class CountryNarrativeService {
       latestIndex
         ? [
             `Youth Index (${latestIndex.year}): ${latestIndex.overallScore.toFixed(1)} (Rank ${latestIndex.rank}/54, Tier: ${latestIndex.tier})`,
-            `  Education: ${latestIndex.educationScore.toFixed(1)} | Employment: ${latestIndex.employmentScore.toFixed(1)} | Health: ${latestIndex.healthScore.toFixed(1)} | Civic: ${latestIndex.civicScore.toFixed(1)} | Innovation: ${latestIndex.innovationScore.toFixed(1)}`,
+            `  ${narrativeDimsLine(latestIndex)}`,
             '',
             'Index History:',
             ...indexHistory.map((s) => `  ${s.year}: Score ${s.overallScore.toFixed(1)}, Rank ${s.rank}`),
@@ -186,7 +219,7 @@ Return ONLY valid JSON, nothing else.`;
 
   private generateRuleBasedNarrative(
     country: { id: string; name: string; region: string },
-    latestIndex: { overallScore: number; rank: number; tier: string; educationScore: number; employmentScore: number; healthScore: number; civicScore: number; innovationScore: number; year: number } | null,
+    latestIndex: NarrativeIndex | null,
     indexHistory: { year: number; overallScore: number; rank: number }[],
     indicators: { indicatorId: string; value: number; year: number; indicator: { name: string; unit: string; theme: { name: string } } }[],
     regionalAvg: Map<string, number>,
@@ -201,13 +234,7 @@ Return ONLY valid JSON, nothing else.`;
     };
 
     const dimensions = latestIndex
-      ? [
-          { name: 'Education', score: latestIndex.educationScore },
-          { name: 'Employment', score: latestIndex.employmentScore },
-          { name: 'Health', score: latestIndex.healthScore },
-          { name: 'Civic Engagement', score: latestIndex.civicScore },
-          { name: 'Innovation', score: latestIndex.innovationScore },
-        ].sort((a, b) => b.score - a.score)
+      ? narrativeDimsArray(latestIndex).sort((a, b) => b.score - a.score)
       : [];
 
     const regionLabel = country.region.replace(/_/g, ' ');

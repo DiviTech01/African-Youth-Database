@@ -11,7 +11,7 @@ export const homeEntries: CmsRegistryEntry[] = [
 
   // Quick Stats section
   { key: 'home.quick_stats.title', page: PAGE, section: 'quick_stats', contentType: 'TEXT', defaultContent: 'Key Statistics' },
-  { key: 'home.quick_stats.subtitle', page: PAGE, section: 'quick_stats', contentType: 'RICH_TEXT', defaultContent: 'Explore essential data points on African youth across our five core thematic areas.' },
+  { key: 'home.quick_stats.subtitle', page: PAGE, section: 'quick_stats', contentType: 'RICH_TEXT', defaultContent: 'Real youth data drawn from the AYIMS template, across our seven core thematic areas covering all 54 African countries.' },
   { key: 'home.quick_stats.population.title', page: PAGE, section: 'quick_stats', contentType: 'TEXT', defaultContent: 'Population' },
   { key: 'home.quick_stats.population.description', page: PAGE, section: 'quick_stats', contentType: 'TEXT', defaultContent: 'African youth aged 15-35' },
   { key: 'home.quick_stats.education.title', page: PAGE, section: 'quick_stats', contentType: 'TEXT', defaultContent: 'Education' },

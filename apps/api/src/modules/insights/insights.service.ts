@@ -3,6 +3,41 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../common/cache.service';
 import { AiService } from './ai.service';
 
+// ---- 7-theme dimension helpers ----
+
+const THEME_LABELS: Record<string, string> = {
+  'youth-demography-participation': 'Youth Demography & Participation',
+  'education': 'Education',
+  'employment': 'Employment',
+  'health': 'Health',
+  'entrepreneurship': 'Entrepreneurship',
+  'peace-security': 'Peace & Security',
+  'access-to-justice': 'Access to Justice',
+};
+
+type YouthIndexLite = {
+  overallScore: number;
+  rank: number;
+  tier: string;
+  dimensionScores: unknown; // Prisma JsonValue
+  year?: number;
+};
+
+function dimsArray(yi: YouthIndexLite): { name: string; slug: string; score: number }[] {
+  const d = (yi.dimensionScores && typeof yi.dimensionScores === 'object')
+    ? (yi.dimensionScores as Record<string, number>)
+    : {};
+  return Object.keys(THEME_LABELS).map((slug) => ({
+    name: THEME_LABELS[slug],
+    slug,
+    score: typeof d[slug] === 'number' ? d[slug] : 50,
+  }));
+}
+
+function dimsLine(yi: YouthIndexLite): string {
+  return dimsArray(yi).map((d) => `${d.name}: ${d.score.toFixed(1)}`).join(' | ');
+}
+
 // ---- Types ----
 
 interface Insight {
@@ -164,14 +199,14 @@ export class InsightsService {
 
   private async tryAiCountryInsights(
     country: { id: string; name: string; region: string },
-    youthIndex: { overallScore: number; rank: number; tier: string; educationScore: number; employmentScore: number; healthScore: number; civicScore: number; innovationScore: number; year: number } | null,
+    youthIndex: YouthIndexLite | null,
     indicators: { name: string; slug: string; value: number; unit: string; year: number; theme: string; regionalAverage: number | null }[],
   ): Promise<Insight[] | null> {
     const dataSummary = [
       `Country: ${country.name}`,
       `Region: ${country.region.replace(/_/g, ' ')}`,
       youthIndex
-        ? `Youth Index: ${youthIndex.overallScore} (rank ${youthIndex.rank}/54, tier: ${youthIndex.tier})\nEducation: ${youthIndex.educationScore} | Employment: ${youthIndex.employmentScore} | Health: ${youthIndex.healthScore} | Civic: ${youthIndex.civicScore} | Innovation: ${youthIndex.innovationScore}`
+        ? `Youth Index: ${youthIndex.overallScore} (rank ${youthIndex.rank}/54, tier: ${youthIndex.tier})\n${dimsLine(youthIndex)}`
         : 'Youth Index: Not yet computed',
       '',
       'Key Indicators:',
@@ -242,7 +277,7 @@ Rules:
 
   private generateRuleBasedInsights(
     country: { id: string; name: string; region: string },
-    youthIndex: { overallScore: number; rank: number; tier: string; educationScore: number; employmentScore: number; healthScore: number; civicScore: number; innovationScore: number } | null,
+    youthIndex: YouthIndexLite | null,
     indicators: { id: string; name: string; slug: string; value: number; unit: string; year: number; theme: string; regionalAverage: number | null }[],
   ): Insight[] {
     const insights: Insight[] = [];
@@ -273,13 +308,7 @@ Rules:
       });
 
       // 2. Best dimension
-      const dimensions = [
-        { name: 'Education', score: youthIndex.educationScore },
-        { name: 'Employment', score: youthIndex.employmentScore },
-        { name: 'Health', score: youthIndex.healthScore },
-        { name: 'Civic Engagement', score: youthIndex.civicScore },
-        { name: 'Innovation', score: youthIndex.innovationScore },
-      ];
+      const dimensions = dimsArray(youthIndex);
       const best = dimensions.reduce((a, b) => (a.score > b.score ? a : b));
       const worst = dimensions.reduce((a, b) => (a.score < b.score ? a : b));
 
@@ -287,7 +316,7 @@ Rules:
         id: `rb-${country.id}-strength`,
         type: 'achievement',
         title: `${best.name} is ${country.name}'s strongest dimension`,
-        description: `${country.name} scores ${best.score.toFixed(1)} in ${best.name}, the highest among its five Youth Index dimensions. This suggests relatively strong youth outcomes in this area.`,
+        description: `${country.name} scores ${best.score.toFixed(1)} in ${best.name}, the highest among its seven Youth Index dimensions. This suggests relatively strong youth outcomes in this area.`,
         severity: 'positive',
         confidence: 1.0,
         relatedCountryId: country.id,

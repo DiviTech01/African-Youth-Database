@@ -8,19 +8,23 @@ import {
   HeartPulse,
   Briefcase,
   Rocket,
-  Vote,
-  Cpu,
-  Wheat,
+  Shield,
   Scale,
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
 
 // ── Per-theme accent palette + secondary icon (the "decoration") ──
+// The seven AYO core themes. IDs match the canonical theme slugs in the DB
+// and in src/types/constants.ts.
 type ThemeKey =
-  | 'population' | 'education' | 'health' | 'employment'
-  | 'entrepreneurship' | 'civic-engagement'
-  | 'innovation-technology' | 'agriculture' | 'gender-equality';
+  | 'youth-demography-participation'
+  | 'education'
+  | 'employment'
+  | 'health'
+  | 'entrepreneurship'
+  | 'peace-security'
+  | 'access-to-justice';
 
 interface ThemeStat { slug: string; label: string; value: number; suffix?: string; prefix?: string; decimals?: number; }
 interface ThemeDef {
@@ -32,113 +36,92 @@ interface ThemeDef {
   stats: ThemeStat[];
 }
 
+// The seven AYO core themes. Indicator counts and weights come from the DB
+// (Theme.weight + Theme.indicators count). Stats shown here are metadata
+// ("17 indicators · 20% weight · 54 countries") — not synthetic data points.
 const themes: ThemeDef[] = [
   {
-    id: 'population',
-    title: 'Population',
-    description: 'Demographics, age structure, and growth trends across the continent.',
+    id: 'youth-demography-participation',
+    title: 'Youth Demography & Participation',
+    description: 'Population structure, voter turnout, political representation, civic participation, and inclusion of youth with disabilities.',
     icon: Users,
-    accent: { from: '#10b981', to: '#34d399', ring: '#10b98140', glow: 'rgba(16,185,129,0.25)', tint: 'rgba(16,185,129,0.08)' },
+    accent: { from: '#2563eb', to: '#60a5fa', ring: '#2563eb40', glow: 'rgba(37,99,235,0.25)', tint: 'rgba(37,99,235,0.08)' },
     stats: [
-      { slug: 'total', label: 'Total Youth', value: 226, suffix: 'M' },
-      { slug: 'growth', label: 'Annual Growth', value: 2.3, suffix: '%', decimals: 1 },
-      { slug: 'urban', label: 'Urban Youth', value: 43, suffix: '%' },
+      { slug: 'weight',     label: 'Index weight', value: 20,  suffix: '%' },
+      { slug: 'indicators', label: 'Indicators',   value: 17 },
+      { slug: 'countries',  label: 'Countries',    value: 54 },
     ],
   },
   {
     id: 'education',
     title: 'Education',
-    description: 'Literacy, enrolment, and learning outcomes for young Africans.',
+    description: 'Youth literacy, enrolment across primary / secondary / tertiary, dropout, teacher–student ratio, and education spending.',
     icon: GraduationCap,
-    accent: { from: '#3b82f6', to: '#60a5fa', ring: '#3b82f640', glow: 'rgba(59,130,246,0.25)', tint: 'rgba(59,130,246,0.08)' },
+    accent: { from: '#7c3aed', to: '#a78bfa', ring: '#7c3aed40', glow: 'rgba(124,58,237,0.25)', tint: 'rgba(124,58,237,0.08)' },
     stats: [
-      { slug: 'literacy', label: 'Literacy', value: 73.4, suffix: '%', decimals: 1 },
-      { slug: 'secondary', label: 'Secondary', value: 62.7, suffix: '%', decimals: 1 },
-      { slug: 'tertiary', label: 'Tertiary', value: 17.8, suffix: '%', decimals: 1 },
-    ],
-  },
-  {
-    id: 'health',
-    title: 'Health',
-    description: 'Healthcare access, mental wellbeing, and outcomes for the youth cohort.',
-    icon: HeartPulse,
-    accent: { from: '#a855f7', to: '#c084fc', ring: '#a855f740', glow: 'rgba(168,85,247,0.25)', tint: 'rgba(168,85,247,0.08)' },
-    stats: [
-      { slug: 'access', label: 'Access', value: 67.2, suffix: '%', decimals: 1 },
-      { slug: 'insurance', label: 'Insured', value: 38.5, suffix: '%', decimals: 1 },
-      { slug: 'mental', label: 'MH Services', value: 27.3, suffix: '%', decimals: 1 },
+      { slug: 'weight',     label: 'Index weight', value: 15,  suffix: '%' },
+      { slug: 'indicators', label: 'Indicators',   value: 15 },
+      { slug: 'countries',  label: 'Countries',    value: 54 },
     ],
   },
   {
     id: 'employment',
     title: 'Employment',
-    description: 'Labour market participation, formal-vs-informal balance, and job creation.',
+    description: 'Youth unemployment, labour-force participation, employment-to-population ratio, sectoral split, and informal-employment share.',
     icon: Briefcase,
-    accent: { from: '#f97316', to: '#fb923c', ring: '#f9731640', glow: 'rgba(249,115,22,0.25)', tint: 'rgba(249,115,22,0.08)' },
+    accent: { from: '#ea580c', to: '#fb923c', ring: '#ea580c40', glow: 'rgba(234,88,12,0.25)', tint: 'rgba(234,88,12,0.08)' },
     stats: [
-      { slug: 'unemployment', label: 'Unemployment', value: 19.7, suffix: '%', decimals: 1 },
-      { slug: 'participation', label: 'LFPR', value: 41.3, suffix: '%', decimals: 1 },
-      { slug: 'informal', label: 'Informal', value: 72.8, suffix: '%', decimals: 1 },
+      { slug: 'weight',     label: 'Index weight', value: 15,  suffix: '%' },
+      { slug: 'indicators', label: 'Indicators',   value: 13 },
+      { slug: 'countries',  label: 'Countries',    value: 54 },
+    ],
+  },
+  {
+    id: 'health',
+    title: 'Health',
+    description: 'Skilled births, contraceptive access, HIV prevalence and treatment, mortality (suicide, AIDS, accidents), mental health, and health spending.',
+    icon: HeartPulse,
+    accent: { from: '#dc2626', to: '#f87171', ring: '#dc262640', glow: 'rgba(220,38,38,0.25)', tint: 'rgba(220,38,38,0.08)' },
+    stats: [
+      { slug: 'weight',     label: 'Index weight', value: 15,  suffix: '%' },
+      { slug: 'indicators', label: 'Indicators',   value: 20 },
+      { slug: 'countries',  label: 'Countries',    value: 54 },
     ],
   },
   {
     id: 'entrepreneurship',
     title: 'Entrepreneurship',
-    description: 'Startup ecosystems, business ownership, and access to capital.',
+    description: 'Startup survival, microcredit, IP registrations, credit access, mobile money, digital infrastructure, and financial-inclusion environment.',
     icon: Rocket,
-    accent: { from: '#14b8a6', to: '#5eead4', ring: '#14b8a640', glow: 'rgba(20,184,166,0.25)', tint: 'rgba(20,184,166,0.08)' },
+    accent: { from: '#0891b2', to: '#22d3ee', ring: '#0891b240', glow: 'rgba(8,145,178,0.25)', tint: 'rgba(8,145,178,0.08)' },
     stats: [
-      { slug: 'ownership', label: 'Ownership', value: 12.6, suffix: '%', decimals: 1 },
-      { slug: 'finance', label: 'Finance Access', value: 23.4, suffix: '%', decimals: 1 },
-      { slug: 'startup', label: 'Startup Rate', value: 3.2, suffix: '%', decimals: 1 },
+      { slug: 'weight',     label: 'Index weight', value: 15,  suffix: '%' },
+      { slug: 'indicators', label: 'Indicators',   value: 35 },
+      { slug: 'countries',  label: 'Countries',    value: 54 },
     ],
   },
   {
-    id: 'civic-engagement',
-    title: 'Civic Engagement',
-    description: 'Youth in governance, voting, civil society, and political agency.',
-    icon: Vote,
-    accent: { from: '#ef4444', to: '#f87171', ring: '#ef444440', glow: 'rgba(239,68,68,0.25)', tint: 'rgba(239,68,68,0.08)' },
+    id: 'peace-security',
+    title: 'Peace & Security',
+    description: 'Internally displaced youth, victims of trafficking, and youth deaths from violent extremism (ages 18–35).',
+    icon: Shield,
+    accent: { from: '#16a34a', to: '#4ade80', ring: '#16a34a40', glow: 'rgba(22,163,74,0.25)', tint: 'rgba(22,163,74,0.08)' },
     stats: [
-      { slug: 'voter', label: 'Voter Reg.', value: 42.8, suffix: '%', decimals: 1 },
-      { slug: 'parliament', label: 'In Parliament', value: 3.2, suffix: '%', decimals: 1 },
-      { slug: 'cso', label: 'CSOs', value: 12400, suffix: '+' },
+      { slug: 'weight',     label: 'Index weight', value: 10,  suffix: '%' },
+      { slug: 'indicators', label: 'Indicators',   value: 3 },
+      { slug: 'countries',  label: 'Countries',    value: 54 },
     ],
   },
   {
-    id: 'innovation-technology',
-    title: 'Innovation & Tech',
-    description: 'Digital adoption, STEM pipelines, and technological capability.',
-    icon: Cpu,
-    accent: { from: '#06b6d4', to: '#67e8f9', ring: '#06b6d440', glow: 'rgba(6,182,212,0.25)', tint: 'rgba(6,182,212,0.08)' },
-    stats: [
-      { slug: 'internet', label: 'Internet', value: 33.8, suffix: '%', decimals: 1 },
-      { slug: 'mobile', label: 'Mobile', value: 67.2, suffix: '%', decimals: 1 },
-      { slug: 'stem', label: 'STEM', value: 14.5, suffix: '%', decimals: 1 },
-    ],
-  },
-  {
-    id: 'agriculture',
-    title: 'Agriculture',
-    description: 'Youth in farming, land access, and rural food systems.',
-    icon: Wheat,
-    accent: { from: '#eab308', to: '#fde047', ring: '#eab30840', glow: 'rgba(234,179,8,0.25)', tint: 'rgba(234,179,8,0.08)' },
-    stats: [
-      { slug: 'youth_in_ag', label: 'In Agriculture', value: 28.4, suffix: '%', decimals: 1 },
-      { slug: 'land', label: 'Land Access', value: 12.1, suffix: '%', decimals: 1 },
-      { slug: 'productivity', label: 'Productivity', value: 62.3, decimals: 1 },
-    ],
-  },
-  {
-    id: 'gender-equality',
-    title: 'Gender Equality',
-    description: 'Parity in education, work, leadership, and protection from violence.',
+    id: 'access-to-justice',
+    title: 'Access to Justice',
+    description: 'Youth awaiting trial, youth imprisoned, and juvenile detentions — measures of how the justice system treats young people.',
     icon: Scale,
-    accent: { from: '#ec4899', to: '#f9a8d4', ring: '#ec489940', glow: 'rgba(236,72,153,0.25)', tint: 'rgba(236,72,153,0.08)' },
+    accent: { from: '#9333ea', to: '#c084fc', ring: '#9333ea40', glow: 'rgba(147,51,234,0.25)', tint: 'rgba(147,51,234,0.08)' },
     stats: [
-      { slug: 'gpi_edu', label: 'GPI Edu', value: 0.94, decimals: 2 },
-      { slug: 'workforce', label: 'Workforce', value: 38.7, suffix: '%', decimals: 1 },
-      { slug: 'gbv', label: 'GBV', value: 21.3, suffix: '%', decimals: 1 },
+      { slug: 'weight',     label: 'Index weight', value: 10,  suffix: '%' },
+      { slug: 'indicators', label: 'Indicators',   value: 4 },
+      { slug: 'countries',  label: 'Countries',    value: 54 },
     ],
   },
 ];

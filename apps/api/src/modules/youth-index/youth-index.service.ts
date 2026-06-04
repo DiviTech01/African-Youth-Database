@@ -3,6 +3,30 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../common/cache.service';
 import { formatRegion, formatTier } from '../../common/utils/format';
 
+// Theme-slug-keyed dimension scores stored in YouthIndexScore.dimensionScores (Json)
+type DimensionMap = Record<string, number>;
+
+const THEME_KEYS = [
+  'youth-demography-participation',
+  'education',
+  'employment',
+  'health',
+  'entrepreneurship',
+  'peace-security',
+  'access-to-justice',
+] as const;
+
+function asDims(json: unknown): DimensionMap {
+  if (!json || typeof json !== 'object') return {};
+  return json as DimensionMap;
+}
+
+function ensureAll(dims: DimensionMap): DimensionMap {
+  const out: DimensionMap = {};
+  for (const k of THEME_KEYS) out[k] = typeof dims[k] === 'number' ? dims[k] : 50;
+  return out;
+}
+
 @Injectable()
 export class YouthIndexService {
   constructor(
@@ -32,38 +56,30 @@ export class YouthIndexService {
           year,
           totalCountries: 0,
           averageScore: 0,
-          methodology: 'Min-max normalization with weighted dimensional scoring',
+          methodology: 'Min-max normalization with weighted dimensional scoring (7 themes)',
         },
       };
     }
 
-    const data = rankings.map((r) => ({
-      rank: r.rank,
-      countryId: r.countryId,
-      countryName: r.country.name,
-      isoCode3: r.country.isoCode3,
-      isoCode: r.country.isoCode3,
-      iso3Code: r.country.isoCode3,
-      flagEmoji: r.country.flagEmoji,
-      region: formatRegion(r.country.region),
-      overallScore: r.overallScore,
-      educationScore: r.educationScore,
-      employmentScore: r.employmentScore,
-      healthScore: r.healthScore,
-      civicScore: r.civicScore,
-      innovationScore: r.innovationScore,
-      dimensions: {
-        education: r.educationScore,
-        employment: r.employmentScore,
-        health: r.healthScore,
-        civic: r.civicScore,
-        innovation: r.innovationScore,
-      },
-      previousRank: r.previousRank,
-      rankChange: r.rankChange,
-      percentile: r.percentile,
-      tier: formatTier(r.tier),
-    }));
+    const data = rankings.map((r) => {
+      const dims = ensureAll(asDims(r.dimensionScores));
+      return {
+        rank: r.rank,
+        countryId: r.countryId,
+        countryName: r.country.name,
+        isoCode3: r.country.isoCode3,
+        isoCode: r.country.isoCode3,
+        iso3Code: r.country.isoCode3,
+        flagEmoji: r.country.flagEmoji,
+        region: formatRegion(r.country.region),
+        overallScore: r.overallScore,
+        dimensions: dims,
+        previousRank: r.previousRank,
+        rankChange: r.rankChange,
+        percentile: r.percentile,
+        tier: formatTier(r.tier),
+      };
+    });
 
     const scores = data.map((d) => d.overallScore);
     const averageScore = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100;
@@ -74,7 +90,7 @@ export class YouthIndexService {
         year,
         totalCountries: data.length,
         averageScore,
-        methodology: 'Min-max normalization with weighted dimensional scoring',
+        methodology: 'Min-max normalization with weighted dimensional scoring (7 themes)',
       },
     };
 
@@ -107,18 +123,7 @@ export class YouthIndexService {
       scores: scores.map((s) => ({
         year: s.year,
         overallScore: s.overallScore,
-        educationScore: s.educationScore,
-        employmentScore: s.employmentScore,
-        healthScore: s.healthScore,
-        civicScore: s.civicScore,
-        innovationScore: s.innovationScore,
-        dimensions: {
-          education: s.educationScore,
-          employment: s.employmentScore,
-          health: s.healthScore,
-          civic: s.civicScore,
-          innovation: s.innovationScore,
-        },
+        dimensions: ensureAll(asDims(s.dimensionScores)),
         rank: s.rank,
         previousRank: s.previousRank,
         rankChange: s.rankChange,
@@ -155,18 +160,7 @@ export class YouthIndexService {
       flagEmoji: r.country.flagEmoji,
       region: formatRegion(r.country.region),
       overallScore: r.overallScore,
-      educationScore: r.educationScore,
-      employmentScore: r.employmentScore,
-      healthScore: r.healthScore,
-      civicScore: r.civicScore,
-      innovationScore: r.innovationScore,
-      dimensions: {
-        education: r.educationScore,
-        employment: r.employmentScore,
-        health: r.healthScore,
-        civic: r.civicScore,
-        innovation: r.innovationScore,
-      },
+      dimensions: ensureAll(asDims(r.dimensionScores)),
       tier: formatTier(r.tier),
     }));
   }

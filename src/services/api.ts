@@ -228,14 +228,46 @@ export const dataApi = {
 };
 
 // ─── Youth Index API ─────────────────────────────────────────────────────
-// All scores come from the `YouthIndexScore` table — populated by the
-// `compute:youth-index` script which runs the canonical min-max normalisation
-// over real `IndicatorValue` rows. No synthesis, no estimates.
+// All scores come from the `YouthIndexScore` table — populated by the calculator
+// that runs canonical min-max normalisation over real `IndicatorValue` rows.
+// The backend stores per-theme scores in `dimensionScores: Json` keyed by theme
+// slug; the normalizer below also populates legacy flat fields (educationScore
+// etc.) so pages not yet migrated to the 7-theme shape keep working.
+
+function normalizeYouthIndex(r: any): YouthIndex {
+  const d: Record<string, number> =
+    (r && r.dimensions && typeof r.dimensions === 'object') ? r.dimensions : {};
+  const demography      = d['youth-demography-participation'] ?? 50;
+  const education       = d['education']        ?? r?.educationScore  ?? 50;
+  const employment      = d['employment']       ?? r?.employmentScore ?? 50;
+  const health          = d['health']           ?? r?.healthScore     ?? 50;
+  const entrepreneurship = d['entrepreneurship'] ?? r?.innovationScore ?? 50;
+  const peaceSecurity   = d['peace-security']   ?? 50;
+  const accessToJustice = d['access-to-justice'] ?? 50;
+  return {
+    ...r,
+    indexScore: r?.indexScore ?? r?.overallScore ?? 0,
+    dimensions: {
+      'youth-demography-participation': demography,
+      'education':                       education,
+      'employment':                      employment,
+      'health':                          health,
+      'entrepreneurship':                entrepreneurship,
+      'peace-security':                  peaceSecurity,
+      'access-to-justice':               accessToJustice,
+    },
+    educationScore: education,
+    employmentScore: employment,
+    healthScore: health,
+    civicScore: demography,           // legacy: civic folded into demography & participation
+    innovationScore: entrepreneurship, // legacy: innovation folded into entrepreneurship
+  } as YouthIndex;
+}
 
 export const youthIndexApi = {
   async getRankings(year?: number): Promise<YouthIndex[]> {
     const payload = await http<any>(`/youth-index/rankings${toQuery({ year })}`);
-    return unwrapList<YouthIndex>(payload);
+    return unwrapList<any>(payload).map(normalizeYouthIndex);
   },
 
   async getByCountry(countryId: string, year?: number): Promise<YouthIndex | null> {
@@ -245,30 +277,28 @@ export const youthIndexApi = {
       null,
     );
     if (!payload) return null;
-    // The endpoint returns { country, scores: [...] } — pick the requested year
-    // (or the latest if year wasn't given).
     if (Array.isArray(payload?.scores)) {
       const target = year
         ? payload.scores.find((s: any) => s.year === year)
         : payload.scores[0];
-      return target ?? null;
+      return target ? normalizeYouthIndex(target) : null;
     }
-    return payload;
+    return normalizeYouthIndex(payload);
   },
 
   async getHistory(countryId: string): Promise<YouthIndex[]> {
     const payload = await http<any>(`/youth-index/${encodeURIComponent(countryId)}`);
-    return unwrapList<YouthIndex>(payload?.scores ?? payload);
+    return unwrapList<any>(payload?.scores ?? payload).map(normalizeYouthIndex);
   },
 
   async getTopPerformers(limit: number = 10, year?: number): Promise<YouthIndex[]> {
-    return unwrapList<YouthIndex>(await http(`/youth-index/top/${limit}${toQuery({ year })}`));
+    return unwrapList<any>(await http(`/youth-index/top/${limit}${toQuery({ year })}`)).map(normalizeYouthIndex);
   },
 
   async getMostImproved(limit: number = 10, year?: number): Promise<YouthIndex[]> {
-    return unwrapList<YouthIndex>(
+    return unwrapList<any>(
       await http(`/youth-index/most-improved/${limit}${toQuery({ year })}`),
-    );
+    ).map(normalizeYouthIndex);
   },
 };
 

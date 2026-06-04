@@ -8,5 +8,5 @@ export * from './database.types';
 // Constants (countries, themes, indicators)
 export * from './constants';
 
-// Mock data service
-export * from './mockData';
+// `mockData.ts` was removed in the cleanup pass — no live UI consumed it
+// (data flows from /api via @/lib/api-client and @/services/api).

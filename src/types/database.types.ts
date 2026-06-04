@@ -81,16 +81,16 @@ export interface Organization {
 // 3. THEMES & INDICATORS
 // ============================================
 
-export type ThemeSlug = 
-  | 'education' 
-  | 'employment' 
-  | 'health' 
-  | 'agriculture' 
-  | 'gender' 
-  | 'innovation' 
-  | 'civic-engagement'
-  | 'environment'
-  | 'finance';
+export type ThemeSlug =
+  | 'youth-demography-participation'
+  | 'education'
+  | 'employment'
+  | 'health'
+  | 'entrepreneurship'
+  | 'peace-security'
+  | 'access-to-justice';
+
+export type DimensionScores = Record<ThemeSlug, number>;
 
 export interface Theme {
   id: string;
@@ -214,7 +214,7 @@ export interface IndicatorTimeSeries {
 // ============================================
 
 export interface YouthIndex {
-  id: string;
+  id?: string;
   countryId: string;
   year: number;
   indexScore: number; // 0-100
@@ -223,13 +223,16 @@ export interface YouthIndex {
   rankChange: number;
   percentile: number;
   tier: 'high' | 'medium-high' | 'medium' | 'medium-low' | 'low';
-  // Dimension scores
-  educationScore: number;
-  healthScore: number;
-  employmentScore: number;
-  civicScore: number;
-  innovationScore: number;
-  createdAt: Date;
+  // Per-theme dimension scores, keyed by slug — canonical source of truth.
+  dimensions: DimensionScores;
+  // Legacy flat fields kept for back-compat with pages not yet migrated.
+  // Mapping: civicScore ← demography & participation; innovationScore ← entrepreneurship.
+  educationScore?: number;
+  healthScore?: number;
+  employmentScore?: number;
+  civicScore?: number;
+  innovationScore?: number;
+  createdAt?: Date;
 }
 
 export interface YouthIndexComponent {

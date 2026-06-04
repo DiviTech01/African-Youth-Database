@@ -262,15 +262,15 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 type="button"
                 onClick={enterPreview}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                title="See the platform as a regular user"
+                title="Switch to the regular user view of the platform"
               >
                 <Eye className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate">Preview as user</span>
+                <span className="truncate">Back to platform</span>
               </button>
             </div>
           </>
         ) : inPreviewMode ? (
-          // Preview mode: user-facing nav, no admin section.
+          // Platform view (admin browsing as user): user-facing nav, no admin section.
           <>
             <div>
               <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400/60">
@@ -299,7 +299,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate">Exit preview</span>
+                <span className="truncate">Back to admin</span>
               </button>
             </div>
           </>
@@ -454,13 +454,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <button
                 type="button"
                 onClick={enterPreview}
-                title={collapsed ? 'Preview as user' : undefined}
+                title={collapsed ? 'Back to platform' : undefined}
                 className={`w-full flex items-center gap-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${
                   collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
                 }`}
               >
                 <Eye className="h-4 w-4 flex-shrink-0" />
-                {!collapsed && <span className="truncate">Preview as user</span>}
+                {!collapsed && <span className="truncate">Back to platform</span>}
               </button>
             </div>
           </>
@@ -494,13 +494,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <button
                 type="button"
                 onClick={exitPreview}
-                title={collapsed ? 'Exit preview' : undefined}
+                title={collapsed ? 'Back to admin' : undefined}
                 className={`w-full flex items-center gap-3 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors ${
                   collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
                 }`}
               >
                 <ArrowLeft className="h-4 w-4 flex-shrink-0" />
-                {!collapsed && <span className="truncate">Exit preview</span>}
+                {!collapsed && <span className="truncate">Back to admin</span>}
               </button>
             </div>
           </>
@@ -654,20 +654,22 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <aside
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className="hidden lg:flex flex-col border-r border-border bg-sidebar-background fixed top-0 left-0 h-screen z-50 transition-[width] duration-200 ease-in-out overflow-hidden shadow-lg shadow-black/20"
+        className="hidden lg:flex flex-col border-r border-border bg-sidebar fixed top-0 left-0 h-screen z-50 transition-[width] duration-200 ease-in-out overflow-hidden shadow-lg shadow-black/20"
         style={{ width: hovered ? 240 : 64 }}
       >
         <DesktopSidebarContent />
       </aside>
 
-      {/* Main Content — left margin tracks the sidebar width so content shifts on hover.
-          We deliberately let the page (body) be the scroll container instead of nesting
-          an `overflow-y-auto` <main>. Nested scroll feels stiff on mobile (no native
-          momentum on iOS, double-scroll glitches), and sticky/fixed elements still work
-          because the sidebar is fixed and the topbar uses `sticky top-0`. */}
+      {/* Main Content — left margin is FIXED at the collapsed sidebar width (64px).
+          The sidebar expands as an overlay on hover (z-50, position:fixed) so the
+          page content stays still. We deliberately let the page (body) be the
+          scroll container instead of nesting an `overflow-y-auto` <main>. Nested
+          scroll feels stiff on mobile (no native momentum on iOS, double-scroll
+          glitches), and sticky/fixed elements still work because the sidebar is
+          fixed and the topbar uses `sticky top-0`. */}
       <div
-        className="flex-1 flex flex-col min-w-0 transition-[margin-left] duration-200 ease-in-out"
-        style={{ marginLeft: isDesktop ? (hovered ? 240 : 64) : 0 }}
+        className="flex-1 flex flex-col min-w-0"
+        style={{ marginLeft: isDesktop ? 64 : 0 }}
       >
         <LiveDataTicker />
 
@@ -776,14 +778,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             menu trigger. Auto-dismisses after one menu open or via the X button. */}
         <NavHintBanner active={!sidebarOpen} />
 
-        {/* Preview-mode banner: always visible across every page when an
-            admin is browsing as a regular user. Gives them an unmissable
-            one-click route back to the admin console. */}
+        {/* Platform-view banner: always visible across every page when an
+            admin is browsing the user-facing platform. Gives them an
+            unmissable one-click route back to the admin console. */}
         {inPreviewMode && (
           <div className="flex items-center justify-between gap-3 px-3 sm:px-4 py-2 bg-red-500/15 border-b border-red-500/40 text-xs">
             <span className="text-red-300 flex items-center gap-1.5 min-w-0">
               <Eye className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Preview mode — you're viewing the platform as a regular user.</span>
+              <span className="truncate">You're viewing the platform as a regular user — admin tools are hidden.</span>
             </span>
             <button
               type="button"
@@ -791,7 +793,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-500/25 hover:bg-red-500/35 text-red-200 hover:text-red-100 font-medium transition-colors"
             >
               <ArrowLeft className="h-3 w-3" />
-              Exit preview
+              Back to admin
             </button>
           </div>
         )}

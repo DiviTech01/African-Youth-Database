@@ -103,37 +103,70 @@ export class DataService {
   async getTimeSeries(query: TimeSeriesQueryDto) {
     const { countryId, indicatorId, gender, yearStart, yearEnd, ageGroup } = query as TimeSeriesQueryDto & { ageGroup?: string };
 
-    const where: Record<string, unknown> = {
+    // Year window — applied to both attempts.
+    const yearWhere: Record<string, number> = {};
+    if (yearStart) yearWhere.gte = yearStart;
+    if (yearEnd) yearWhere.lte = yearEnd;
+
+    // Strict pass first: the platform default (AU 15-35 youth band, TOTAL gender,
+    // or whatever the caller asked for). This is the right shape for properly
+    // age-disaggregated indicators (literacy, unemployment, contraceptive
+    // prevalence, etc.) and keeps cross-country comparability intact.
+    const strictWhere: Record<string, unknown> = {
       countryId,
       indicatorId,
       gender: gender || 'TOTAL',
       ageGroup: ageGroup ?? DEFAULT_AGE_GROUP,
     };
+    if (Object.keys(yearWhere).length) strictWhere.year = yearWhere;
 
-    if (yearStart || yearEnd) {
-      where.year = {};
-      if (yearStart) (where.year as Record<string, number>).gte = yearStart;
-      if (yearEnd) (where.year as Record<string, number>).lte = yearEnd;
+    let values = await this.prisma.indicatorValue.findMany({
+      where: strictWhere,
+      orderBy: { year: 'asc' },
+      select: { year: true, value: true, gender: true, ageGroup: true },
+    });
+
+    // Fallback: many AYC policy markers and other country-level indicators
+    // (national policy attributes, WB ranks, etc.) are uploaded without a
+    // youth age band — the cell is country-wide, not "15-35 youth only".
+    // The strict filter above silently rejects them. If we found nothing,
+    // and the caller didn't explicitly pin an age group, re-query WITHOUT
+    // the ageGroup default. We have to pass `_skipAgeGroupDefault: true`
+    // to bypass the platform-wide Prisma middleware that auto-injects
+    // ageGroup="15-35" on every IndicatorValue read.
+    let usedFallback = false;
+    if (values.length === 0 && !ageGroup) {
+      const lenientWhere: Record<string, unknown> = {
+        countryId,
+        indicatorId,
+        gender: gender || 'TOTAL',
+        _skipAgeGroupDefault: true,
+      };
+      if (Object.keys(yearWhere).length) lenientWhere.year = yearWhere;
+      values = await this.prisma.indicatorValue.findMany({
+        where: lenientWhere as any,
+        orderBy: { year: 'asc' },
+        select: { year: true, value: true, gender: true, ageGroup: true },
+      });
+      usedFallback = values.length > 0;
     }
 
-    const [values, indicator] = await Promise.all([
-      this.prisma.indicatorValue.findMany({
-        where,
-        orderBy: { year: 'asc' },
-        select: { year: true, value: true, gender: true },
-      }),
-      this.prisma.indicator.findUnique({
-        where: { id: indicatorId },
-        select: { id: true, name: true, unit: true, source: true },
-      }),
-    ]);
+    const indicator = await this.prisma.indicator.findUnique({
+      where: { id: indicatorId },
+      select: { id: true, name: true, unit: true, source: true },
+    });
 
     return {
       indicator,
+      // Surface the age-band that was actually used so the UI can label
+      // country-level indicators differently (e.g., "national value" rather
+      // than "youth 15-35"). Default unchanged for back-compat.
+      ageGroupUsed: usedFallback ? 'all' : (ageGroup ?? DEFAULT_AGE_GROUP),
       data: values.map((v) => ({
         year: v.year,
         value: v.value,
         gender: v.gender,
+        ageGroup: v.ageGroup,
       })),
     };
   }

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Download, TrendingUp, TrendingDown, Minus, Info, Award, BarChart3, ArrowUpDown, X } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, Minus, Info, Award, BarChart3, ArrowUpDown, X, Search } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from 'recharts';
@@ -82,14 +82,18 @@ const REGION_BY_COUNTRY: Record<string, string> = Object.fromEntries(
   mockIndexData.map((c) => [c.country, c.region]),
 );
 
+// The seven AYO dimensions — match the slugs in apps/api Theme table.
 const dimensions = [
-  { key: "education", label: "Education", weight: "25%", color: "text-pan-blue-500" },
-  { key: "employment", label: "Employment", weight: "30%", color: "text-pan-gold-500" },
-  { key: "health", label: "Health", weight: "25%", color: "text-pan-green-500" },
-  { key: "civic", label: "Civic Engagement", weight: "20%", color: "text-pan-red-500" },
+  { key: "demography",       label: "Demography",      weight: "20%", color: "text-blue-400" },
+  { key: "education",        label: "Education",       weight: "15%", color: "text-violet-400" },
+  { key: "employment",       label: "Employment",      weight: "15%", color: "text-orange-400" },
+  { key: "health",           label: "Health",          weight: "15%", color: "text-red-400" },
+  { key: "entrepreneurship", label: "Entrepreneurship", weight: "15%", color: "text-cyan-400" },
+  { key: "peaceSecurity",    label: "Peace",           weight: "10%", color: "text-green-400" },
+  { key: "accessToJustice",  label: "Justice",         weight: "10%", color: "text-purple-400" },
 ];
 
-type SortField = 'rank' | 'country' | 'score' | 'change' | 'education' | 'employment' | 'health' | 'civic';
+type SortField = 'rank' | 'country' | 'score' | 'change' | 'demography' | 'education' | 'employment' | 'health' | 'entrepreneurship' | 'peaceSecurity' | 'accessToJustice';
 
 const getTierBadge = (score: number) => {
   if (score >= 70) return <Badge className="ml-2 bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30 hover:bg-green-500/25">High</Badge>;
@@ -102,6 +106,7 @@ const YouthIndex = () => {
   const { preferences } = useUserPreferences();
   const [selectedYear, setSelectedYear] = useState("2024");
   const [selectedRegion, setSelectedRegion] = useState("All Regions");
+  const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>('rank');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const navigate = useNavigate();
@@ -127,33 +132,48 @@ const YouthIndex = () => {
     );
   };
 
-  // Fetch rankings from API
+  // Fetch rankings from the api-client at @/lib/api-client. This client
+  // returns the raw wire response — typically `{ data: [...], meta: {...} }`
+  // for paginated/grouped endpoints — so we unwrap `.data` below before
+  // mapping. Calling it with `{ year }` is correct because the api-client
+  // signature is `rankings(params?: { year?: number })`.
   const { data: apiRankings, isLoading, isError } = useQuery({
     queryKey: ['youth-index', selectedYear],
     queryFn: () => api.youthIndex.rankings({ year: parseInt(selectedYear) }),
   });
 
-  // Transform API data to match UI format, fallback to mock
+  // Transform API data to match UI format. The backend now returns
+  // `dimensions` keyed by the 7 theme slugs alongside the legacy flat
+  // score fields (back-compat shim). We prefer the new map but fall
+  // through to legacy fields if a slug is missing.
   const indexData = useMemo(() => {
-    const apiData = (apiRankings as any)?.data || apiRankings;
+    // The api-client doesn't unwrap envelopes — both `T[]` (legacy shape)
+    // and `{ data: T[], meta }` (paginated shape) need to be supported here.
+    const apiData: any = (apiRankings as any)?.data ?? apiRankings;
     if (Array.isArray(apiData) && apiData.length > 0) {
       return apiData.map((r: any) => {
         const country = r.countryName || r.country?.name;
+        const d = r.dimensions ?? {};
         return {
           rank: r.rank,
           country,
           region: r.region || REGION_BY_COUNTRY[country] || 'Other',
-          score: r.overallScore,
+          score: r.indexScore ?? r.overallScore,
           change: r.rankChange || 0,
-          education: r.dimensions?.education ?? r.educationScore ?? 0,
-          employment: r.dimensions?.employment ?? r.employmentScore ?? 0,
-          health: r.dimensions?.health ?? r.healthScore ?? 0,
-          civic: r.dimensions?.civic ?? r.civicScore ?? 0,
+          demography:       d['youth-demography-participation'] ?? r.civicScore     ?? 0,
+          education:        d['education']        ?? r.educationScore  ?? 0,
+          employment:       d['employment']       ?? r.employmentScore ?? 0,
+          health:           d['health']           ?? r.healthScore     ?? 0,
+          entrepreneurship: d['entrepreneurship'] ?? r.innovationScore ?? 0,
+          peaceSecurity:    d['peace-security']   ?? 0,
+          accessToJustice:  d['access-to-justice'] ?? 0,
           tier: r.tier,
         };
       });
     }
-    return mockIndexData;
+    // No mock fallback. If the API returns nothing, the empty-state below
+    // explains why — don't silently substitute fabricated numbers.
+    return [];
   }, [apiRankings]);
 
   const handleSort = (field: SortField) => {
@@ -166,9 +186,16 @@ const YouthIndex = () => {
   };
 
   const filteredData = useMemo(() => {
-    if (selectedRegion === 'All Regions') return indexData;
-    return indexData.filter((item: any) => item.region === selectedRegion);
-  }, [indexData, selectedRegion]);
+    let rows = indexData as any[];
+    if (selectedRegion !== 'All Regions') {
+      rows = rows.filter((item) => item.region === selectedRegion);
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((item) => String(item.country || '').toLowerCase().includes(q));
+    }
+    return rows;
+  }, [indexData, selectedRegion, searchQuery]);
 
   const sortedData = useMemo(() => {
     return [...filteredData].sort((a, b) => {
@@ -359,10 +386,13 @@ const YouthIndex = () => {
                 <ResponsiveContainer width="100%" height={320}>
                   <RadarChart
                     data={breakdownCountry ? [
-                      { dimension: 'Education', value: breakdownCountry.education, fullMark: 100 },
-                      { dimension: 'Employment', value: breakdownCountry.employment, fullMark: 100 },
-                      { dimension: 'Health', value: breakdownCountry.health, fullMark: 100 },
-                      { dimension: 'Civic', value: breakdownCountry.civic, fullMark: 100 },
+                      { dimension: 'Demography',      value: breakdownCountry.demography,       fullMark: 100 },
+                      { dimension: 'Education',       value: breakdownCountry.education,        fullMark: 100 },
+                      { dimension: 'Employment',      value: breakdownCountry.employment,       fullMark: 100 },
+                      { dimension: 'Health',          value: breakdownCountry.health,           fullMark: 100 },
+                      { dimension: 'Entrepreneurship', value: breakdownCountry.entrepreneurship, fullMark: 100 },
+                      { dimension: 'Peace',           value: breakdownCountry.peaceSecurity,    fullMark: 100 },
+                      { dimension: 'Justice',         value: breakdownCountry.accessToJustice,  fullMark: 100 },
                     ] : []}
                     cx="50%" cy="50%" outerRadius="75%"
                   >
@@ -379,23 +409,15 @@ const YouthIndex = () => {
                   </RadarChart>
                 </ResponsiveContainer>
                 {breakdownCountry && (
-                  <div className="grid grid-cols-4 gap-4 mt-2 w-full text-center">
-                    <div>
-                      <p className="text-xs text-gray-400">Education</p>
-                      <p className="font-bold text-sm">{breakdownCountry.education}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400">Employment</p>
-                      <p className="font-bold text-sm">{breakdownCountry.employment}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400">Health</p>
-                      <p className="font-bold text-sm">{breakdownCountry.health}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400">Civic</p>
-                      <p className="font-bold text-sm">{breakdownCountry.civic}</p>
-                    </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-3 mt-2 w-full text-center">
+                    {dimensions.map((dim) => (
+                      <div key={dim.key}>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">{dim.label}</p>
+                        <p className={`font-bold text-sm ${dim.color}`}>
+                          {Math.round((breakdownCountry as any)[dim.key] ?? 0)}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 )}
                 {breakdownCountry && (
@@ -419,29 +441,57 @@ const YouthIndex = () => {
           {/* Full Rankings Table */}
           <Card className="bg-white/[0.03] border-gray-800 rounded-2xl">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div className="min-w-0">
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-primary" />
                     {t('youthIndex.fullRankings')}
+                    <span className="text-xs font-normal text-gray-500">
+                      ({filteredData.length} of {indexData.length})
+                    </span>
                   </CardTitle>
                   <p className="text-xs text-gray-500 mt-1.5">
                     Click a country name to open its <span className="text-[#D4A017]">youth profile overview</span> · click a score or dimension to see the breakdown
                   </p>
                 </div>
-                <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All Regions">All Regions</SelectItem>
-                    <SelectItem value="North Africa">North Africa</SelectItem>
-                    <SelectItem value="West Africa">West Africa</SelectItem>
-                    <SelectItem value="East Africa">East Africa</SelectItem>
-                    <SelectItem value="Central Africa">Central Africa</SelectItem>
-                    <SelectItem value="Southern Africa">Southern Africa</SelectItem>
-                  </SelectContent>
-                </Select>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Country search — type any AU country name */}
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
+                    <input
+                      type="text"
+                      placeholder="Search country..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 pr-8 h-9 w-[200px] rounded-md border border-gray-800/60 bg-white/[0.03] text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D4A017]/40 focus:border-[#D4A017]/40"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                        aria-label="Clear search"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+                    <SelectTrigger className="w-[160px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All Regions">All Regions</SelectItem>
+                      <SelectItem value="North Africa">North Africa</SelectItem>
+                      <SelectItem value="West Africa">West Africa</SelectItem>
+                      <SelectItem value="East Africa">East Africa</SelectItem>
+                      <SelectItem value="Central Africa">Central Africa</SelectItem>
+                      <SelectItem value="Southern Africa">Southern Africa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -452,12 +502,15 @@ const YouthIndex = () => {
                       {([
                         { field: 'rank' as SortField, label: 'Rank', align: 'text-left', color: '' },
                         { field: 'country' as SortField, label: 'Country', align: 'text-left', color: '' },
-                        { field: 'score' as SortField, label: 'Overall Score', align: 'text-left', color: '', hasTooltip: true },
+                        { field: 'score' as SortField, label: 'Overall', align: 'text-left', color: '', hasTooltip: true },
                         { field: 'change' as SortField, label: 'Change', align: 'text-left', color: '' },
-                        { field: 'education' as SortField, label: 'Education', align: 'text-center', color: 'text-pan-blue-500' },
-                        { field: 'employment' as SortField, label: 'Employment', align: 'text-center', color: 'text-pan-gold-500' },
-                        { field: 'health' as SortField, label: 'Health', align: 'text-center', color: 'text-pan-green-500' },
-                        { field: 'civic' as SortField, label: 'Civic', align: 'text-center', color: 'text-pan-red-500' },
+                        { field: 'demography' as SortField,       label: 'Demo',  align: 'text-center', color: 'text-blue-400' },
+                        { field: 'education' as SortField,        label: 'Edu',   align: 'text-center', color: 'text-violet-400' },
+                        { field: 'employment' as SortField,       label: 'Emp',   align: 'text-center', color: 'text-orange-400' },
+                        { field: 'health' as SortField,           label: 'Hlth',  align: 'text-center', color: 'text-red-400' },
+                        { field: 'entrepreneurship' as SortField, label: 'Entr',  align: 'text-center', color: 'text-cyan-400' },
+                        { field: 'peaceSecurity' as SortField,    label: 'Peace', align: 'text-center', color: 'text-green-400' },
+                        { field: 'accessToJustice' as SortField,  label: 'Just',  align: 'text-center', color: 'text-purple-400' },
                       ]).map((col) => (
                         <th
                           key={col.field}
@@ -525,15 +578,35 @@ const YouthIndex = () => {
                             </span>
                           </span>
                         </td>
-                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{item.education}</td>
-                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{item.employment}</td>
-                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{item.health}</td>
-                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{item.civic}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.demography ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.education ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.employment ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.health ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.entrepreneurship ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.peaceSecurity ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.accessToJustice ?? 0)}</td>
                       </tr>
                       );
                     })}
                   </tbody>
                 </table>
+
+                {/* Empty state when search/region filter excludes everything */}
+                {sortedData.length === 0 && indexData.length > 0 && (
+                  <div className="text-center py-10">
+                    <Search className="h-7 w-7 text-gray-600 mx-auto mb-3" />
+                    <p className="text-sm text-gray-400">
+                      No country matches{searchQuery ? <> "<span className="text-white">{searchQuery}</span>"</> : ''}{selectedRegion !== 'All Regions' ? <> in <span className="text-white">{selectedRegion}</span></> : ''}.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setSearchQuery(''); setSelectedRegion('All Regions'); }}
+                      className="mt-3 text-xs text-[#D4A017] hover:underline"
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -545,7 +618,7 @@ const YouthIndex = () => {
               <Content
                 as="span"
                 id="youth_index.about.body"
-                fallback="The AYI is a composite indicator ranking African countries based on youth development outcomes. Scores range from 0-100, calculated across four dimensions: Education (25%), Employment (30%), Health (25%), and Civic Engagement (20%). Rankings are updated annually."
+                fallback="The African Youth Index is a composite indicator that ranks all 54 African Union member states by youth development outcomes. Scores range from 0–100 and are computed each year across seven weighted thematic dimensions: Youth Demography & Participation (20%), Education (15%), Employment (15%), Health (15%), Entrepreneurship (15%), Peace & Security (10%), and Access to Justice (10%). Indicator values are min–max normalized per year, then combined with these weights into the overall score. Missing indicators have their weight redistributed within the same theme; missing themes fall back to the regional average."
               />
               <a href="/resources/methodology" className="text-primary hover:underline ml-1">
                 <Content as="span" id="youth_index.about.methodology_link" fallback="View full methodology" />

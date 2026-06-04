@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Download, Share, ExternalLink, BarChart3, CircleDot, Footprints, ArrowLeftRight, Activity } from 'lucide-react';
+import { Download, Share, ExternalLink, BarChart3, CircleDot, Footprints, ArrowLeftRight, Activity, Loader2 } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -16,6 +17,8 @@ import {
   Scatter,
   Area,
 } from 'recharts';
+import { useCountries, useThemes, useIndicatorsByTheme } from '@/hooks/useData';
+import { api } from '@/services/api';
 
 type ChartType = 'bar' | 'lollipop' | 'step-trend' | 'yoy';
 
@@ -33,38 +36,94 @@ const COLORS = {
   purple: '#8B5CF6',
 };
 
-function seededRandom(seed: number) {
-  const x = Math.sin(seed) * 10000;
-  return x - Math.floor(x);
-}
+// Live API-backed time series. Resolves country/theme/indicator NAMES to the
+// real cuids in the database and calls /api/data/timeseries to pull
+// year × value rows for the selected country + indicator.
+function useChartData(
+  country: string,
+  theme: string,
+  indicator: string,
+  yearRange: [number, number],
+): { data: { year: string; value: number }[]; isLoading: boolean; error: Error | null; indicatorRow: { id?: string; unit?: string; source?: string } | null; countryRow: { id?: string } | null; needsCountry: boolean } {
+  const countriesQ = useCountries();
+  const themesQ = useThemes();
 
-function generateMockData(indicator: string, yearRange: [number, number], country: string) {
-  const [startYear, endYear] = yearRange;
-  const seed = indicator.length * 7 + country.length * 13 + startYear + endYear;
+  const themeRow = useMemo(() => {
+    if (!themesQ.data || theme === 'All Themes') return null;
+    return themesQ.data.find((t) => t.name === theme || t.slug === theme) ?? null;
+  }, [themesQ.data, theme]);
 
-  let base = 45;
-  let variance = 15;
-  let trend = 1.2;
-  const lower = indicator.toLowerCase();
+  const indicatorsQ = useIndicatorsByTheme(themeRow?.id ?? '');
+  const indicatorRow = useMemo(() => {
+    if (!indicatorsQ.data || indicator === 'Select an indicator') return null;
+    return indicatorsQ.data.find((i) => i.name === indicator || i.slug === indicator) ?? null;
+  }, [indicatorsQ.data, indicator]);
 
-  if (lower.includes('unemployment') || lower.includes('poverty')) {
-    base = 35; variance = 8; trend = -0.6;
-  } else if (lower.includes('enrollment') || lower.includes('literacy')) {
-    base = 55; variance = 10; trend = 1.5;
-  } else if (lower.includes('population') || lower.includes('growth')) {
-    base = 2.5; variance = 0.4; trend = 0.05;
-  } else if (lower.includes('employment') || lower.includes('participation')) {
-    base = 40; variance = 12; trend = 0.9;
+  const countryRow = useMemo(() => {
+    if (!countriesQ.data || country === 'All Countries') return null;
+    return countriesQ.data.find((c) => c.name === country) ?? null;
+  }, [countriesQ.data, country]);
+
+  const timeseriesQ = useQuery({
+    queryKey: ['data', 'timeseries', countryRow?.id, indicatorRow?.id, yearRange[0], yearRange[1]],
+    queryFn: () => api.data.getTimeSeries(countryRow!.id, indicatorRow!.id, yearRange),
+    enabled: !!countryRow?.id && !!indicatorRow?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Probe: if the year-filtered query returned 0 rows, fire a second query
+  // without a year window to see what years ARE available for this combo.
+  // Lets the empty state suggest a concrete "widen to 2018–2024" rather
+  // than a vague "try widening the range".
+  const allYearsQ = useQuery({
+    queryKey: ['data', 'timeseries-all-years', countryRow?.id, indicatorRow?.id],
+    queryFn: () => api.data.getTimeSeries(countryRow!.id, indicatorRow!.id),
+    enabled:
+      !!countryRow?.id &&
+      !!indicatorRow?.id &&
+      !timeseriesQ.isLoading &&
+      (timeseriesQ.data?.data?.length ?? 0) === 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const rawRows = timeseriesQ.data?.data ?? [];
+  const data = rawRows.map((d: any) => ({ year: String(d.year), value: d.value }));
+
+  // Derive the age-band label from the rows the API actually returned.
+  // The AYIMS template stores each indicator under a fixed band (15-35 for
+  // most youth metrics, 18-35 for adult-justice/mortality, 18-30 for
+  // trafficking/IDPs, or empty for country-level policy markers).
+  const distinctAgeGroups = Array.from(new Set(rawRows.map((r: any) => r.ageGroup ?? '').filter(Boolean) as string[]));
+  let ageBandLabel: string | null = null;
+  if (rawRows.length > 0) {
+    if (distinctAgeGroups.length === 0) {
+      ageBandLabel = 'National value (no youth disaggregation)';
+    } else if (distinctAgeGroups.length === 1) {
+      ageBandLabel = `Ages ${distinctAgeGroups[0]}`;
+    } else {
+      ageBandLabel = `Mixed bands (${distinctAgeGroups.join(', ')})`;
+    }
   }
 
-  const data = [];
-  for (let year = startYear; year <= endYear; year++) {
-    const idx = year - startYear;
-    const noise = (seededRandom(seed + idx * 31) - 0.5) * variance;
-    const value = Math.max(0, Math.round((base + trend * idx + noise) * 10) / 10);
-    data.push({ year: year.toString(), value });
-  }
-  return data;
+  // Years available for this country+indicator across the FULL DB (no year filter).
+  // Used to power the smart empty-state hint.
+  const availableYears: number[] = (allYearsQ.data?.data ?? [])
+    .map((d: any) => d.year as number)
+    .sort((a: number, b: number) => a - b);
+
+  return {
+    data,
+    isLoading: timeseriesQ.isLoading,
+    error: (timeseriesQ.error as Error) ?? null,
+    indicatorRow: timeseriesQ.data?.indicator ?? indicatorRow,
+    countryRow,
+    ageBandLabel,
+    availableYears,
+    isProbingYears: allYearsQ.isLoading,
+    // Flag the "you picked an indicator but no country" state so the chart
+    // can render a "pick a country" prompt instead of just an empty graph.
+    needsCountry: !countryRow && indicator !== 'Select an indicator' && theme !== 'All Themes',
+  };
 }
 
 // Linear regression for the trend line
@@ -152,10 +211,20 @@ const DataChart = ({
 
   const hasSelection = theme !== 'All Themes' && indicator !== 'Select an indicator';
 
-  const data = useMemo(
-    () => (hasSelection ? generateMockData(indicator, yearRange, country) : []),
-    [indicator, yearRange, country, hasSelection],
-  );
+  // Real API-backed data. Resolves name → cuid lookups internally and pulls
+  // from /api/data/timeseries. Returns an empty array when no country is
+  // selected — that's a distinct state, surfaced via `needsCountry`.
+  const {
+    data: liveData,
+    isLoading: isDataLoading,
+    error: dataError,
+    indicatorRow,
+    needsCountry,
+    ageBandLabel,
+    availableYears,
+    isProbingYears,
+  } = useChartData(country, theme, indicator, yearRange);
+  const data = hasSelection ? liveData : [];
 
   const avgValue = useMemo(() => {
     if (!data.length) return 0;
@@ -338,9 +407,14 @@ const DataChart = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <Activity className="h-4 w-4 text-emerald-400" />
             <h3 className="text-xl font-bold text-white">{indicator}</h3>
+            {ageBandLabel && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">
+                {ageBandLabel}
+              </span>
+            )}
           </div>
           <p className="text-sm text-gray-500">
             {country !== 'All Countries' ? country : 'All African Countries'}
@@ -394,6 +468,74 @@ const DataChart = ({
             </div>
             <p className="text-gray-500 text-sm">Select a theme and indicator to visualize data</p>
           </div>
+        ) : needsCountry ? (
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+              <BarChart3 className="h-7 w-7 text-emerald-400" />
+            </div>
+            <p className="text-emerald-300 text-sm font-medium">Pick a country to chart this indicator</p>
+            <p className="text-gray-500 text-xs mt-2">
+              "{indicator}" has values for every African Union member state. Choose one in the filter sidebar or click on the Africa map above to see its time series.
+            </p>
+          </div>
+        ) : isDataLoading ? (
+          <div className="text-center">
+            <Loader2 className="h-7 w-7 text-emerald-400 animate-spin mx-auto mb-3" />
+            <p className="text-gray-500 text-sm">Loading data from the AYO database…</p>
+          </div>
+        ) : dataError ? (
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+              <BarChart3 className="h-7 w-7 text-red-400" />
+            </div>
+            <p className="text-red-300 text-sm font-medium">Could not load data</p>
+            <p className="text-gray-500 text-xs mt-1">{dataError.message}</p>
+          </div>
+        ) : data.length === 0 ? (
+          <div className="text-center max-w-md">
+            {isProbingYears ? (
+              <>
+                <Loader2 className="h-7 w-7 text-amber-400 animate-spin mx-auto mb-3" />
+                <p className="text-amber-300 text-sm font-medium">Checking what's available…</p>
+              </>
+            ) : availableYears.length > 0 ? (
+              <>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                  <BarChart3 className="h-7 w-7 text-amber-400" />
+                </div>
+                <p className="text-amber-300 text-sm font-medium">
+                  No data in {yearRange[0]}–{yearRange[1]}
+                </p>
+                <p className="text-gray-500 text-xs mt-2 leading-relaxed">
+                  <strong className="text-gray-300">{country}</strong> has{' '}
+                  <strong className="text-amber-300">
+                    {availableYears.length} value{availableYears.length === 1 ? '' : 's'}
+                  </strong>{' '}
+                  for "{indicator}" — but only in{' '}
+                  <strong className="text-emerald-300">
+                    {availableYears.length === 1
+                      ? availableYears[0]
+                      : availableYears.length <= 4
+                      ? availableYears.join(', ')
+                      : `${availableYears[0]}, ${availableYears[1]}, …, ${availableYears[availableYears.length - 1]}`}
+                  </strong>
+                  . Widen your year range above to include {availableYears[0]}–{availableYears[availableYears.length - 1]}.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                  <BarChart3 className="h-7 w-7 text-amber-400" />
+                </div>
+                <p className="text-amber-300 text-sm font-medium">No values uploaded for this country</p>
+                <p className="text-gray-500 text-xs mt-2 leading-relaxed">
+                  <strong className="text-gray-300">{country}</strong> has no rows for "{indicator}"
+                  in the AYO database (any year). The AYIMS template for this country may not have
+                  populated this indicator. Try another country, or pick a different indicator from the same theme.
+                </p>
+              </>
+            )}
+          </div>
         ) : (
           <ResponsiveContainer width="100%" height={340}>
             {renderChart()}
@@ -416,7 +558,7 @@ const DataChart = ({
         <div className="w-1 h-full min-h-[20px] rounded-full bg-gradient-to-b from-emerald-500/40 to-transparent flex-shrink-0 mt-0.5" />
         <p className="text-[11px] text-gray-500 leading-relaxed">
           {hasSelection
-            ? `${indicator} for ${country !== 'All Countries' ? country : 'all African countries'}, ${yearRange[0]}–${yearRange[1]}. Source: African Union, UNDP Africa, World Bank Open Data.`
+            ? `${indicator} for ${country !== 'All Countries' ? country : 'all 54 African countries (continental average)'}, ${yearRange[0]}–${yearRange[1]}. Source: ${(indicatorRow as any)?.source || 'African Youth Index Measurement System (AYIMS)'} via the AYO database. Values are pulled live from /api/data/timeseries — no estimates or synthesised numbers.`
             : 'Select data filters to view source attribution and methodology notes.'}
         </p>
       </div>

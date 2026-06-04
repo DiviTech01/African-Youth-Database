@@ -244,17 +244,58 @@ Rules:
     const limitMatch = q.match(/top\s+(\d+)|(\d+)\s+(?:best|worst|top|bottom)/);
     const limit = limitMatch ? parseInt(limitMatch[1] || limitMatch[2]) : 10;
 
-    // Detect themes
+    // Detect themes — map natural-language keywords to the 7 canonical theme slugs.
+    // Stale themes (innovation/agriculture/gender/environment as standalone) were
+    // consolidated; their keywords now route to their absorbing theme:
+    //   civic / participation / democracy → demography & participation
+    //   innovation / technology / digital → entrepreneurship (where internet/IP/etc live)
+    //   finance / credit                 → entrepreneurship (financial inclusion folded in)
+    //   peace / extremism / displaced    → peace & security
+    //   justice / prison / trial         → access to justice
     const themes: string[] = [];
     const themeKeywords: Record<string, string> = {
-      education: 'education', employment: 'employment-entrepreneurship',
-      health: 'health', civic: 'civic-engagement-governance',
-      innovation: 'innovation-technology', technology: 'innovation-technology',
-      agriculture: 'agriculture', gender: 'gender-equality',
-      finance: 'financial-inclusion', environment: 'environment-climate',
+      // Education / Employment / Health — clean 1:1
+      education: 'education',
+      literacy: 'education',
+      enrollment: 'education',
+      employment: 'employment',
+      unemployment: 'employment',
+      labour: 'employment',
+      labor: 'employment',
+      health: 'health',
+      // Demography & participation (absorbed Civic Engagement & Governance)
+      demography: 'youth-demography-participation',
+      population: 'youth-demography-participation',
+      civic: 'youth-demography-participation',
+      participation: 'youth-demography-participation',
+      voter: 'youth-demography-participation',
+      voting: 'youth-demography-participation',
+      governance: 'youth-demography-participation',
+      democracy: 'youth-demography-participation',
+      // Entrepreneurship (absorbed Innovation & Financial Inclusion)
+      entrepreneurship: 'entrepreneurship',
+      startup: 'entrepreneurship',
+      innovation: 'entrepreneurship',
+      technology: 'entrepreneurship',
+      digital: 'entrepreneurship',
+      internet: 'entrepreneurship',
+      finance: 'entrepreneurship',
+      credit: 'entrepreneurship',
+      // Peace & Security
+      peace: 'peace-security',
+      security: 'peace-security',
+      extremism: 'peace-security',
+      trafficking: 'peace-security',
+      displaced: 'peace-security',
+      // Access to Justice
+      justice: 'access-to-justice',
+      prison: 'access-to-justice',
+      imprisoned: 'access-to-justice',
+      trial: 'access-to-justice',
+      juvenile: 'access-to-justice',
     };
     for (const [kw, slug] of Object.entries(themeKeywords)) {
-      if (q.includes(kw)) themes.push(slug);
+      if (q.includes(kw) && !themes.includes(slug)) themes.push(slug);
     }
 
     return { intent, countries, regions, indicatorSlugs, themes, yearStart, yearEnd, gender: null, limit, sortOrder };

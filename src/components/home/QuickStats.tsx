@@ -1,20 +1,22 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Users, GraduationCap, Heart, Briefcase, BookOpen } from 'lucide-react';
+import { Users, GraduationCap, HeartPulse, Briefcase, Rocket, Shield, Scale } from 'lucide-react';
 import { GlowCard } from '@/components/ui/spotlight-card';
 import { Content } from '@/components/cms';
 
-// Tile scaffolding only — every numeric `value` is filled in from the real
-// YouthIndexScore averages at render time. The starter "—" lets the page
-// render before the API responds and stays put if the score doesn't exist.
+// Seven tiles — one per AYO theme — each backed by real API data. The
+// numeric `value` is filled in from /api/youth-index/rankings at render
+// time (continental average of that dimension across the 54 countries).
 // Per admin directive: no synthesised numbers anywhere on the landing page.
 const statsData = [
-  { slug: 'population',      title: 'Coverage',         description: 'Countries with live data',         glowColor: 'green'  as const, icon: Users,         link: '/dashboard' },
-  { slug: 'education',       title: 'Education',        description: 'Avg education dimension score',    glowColor: 'blue'   as const, icon: GraduationCap, link: '/dashboard' },
-  { slug: 'health',          title: 'Health',           description: 'Avg health dimension score',       glowColor: 'purple' as const, icon: Heart,         link: '/dashboard' },
-  { slug: 'employment',      title: 'Employment',       description: 'Avg employment dimension score',   glowColor: 'orange' as const, icon: Briefcase,     link: '/dashboard' },
-  { slug: 'entrepreneurship',title: 'Innovation',       description: 'Avg innovation dimension score',   glowColor: 'green'  as const, icon: BookOpen,      link: '/dashboard' },
+  { slug: 'demography',       title: 'Demography & Participation', weightPct: '20%', description: 'Voter turnout · participation',         glowColor: 'blue'   as const, icon: Users,         link: '/youth-index' },
+  { slug: 'education',        title: 'Education',                  weightPct: '15%', description: 'Literacy · enrollment · dropout',       glowColor: 'purple' as const, icon: GraduationCap, link: '/youth-index' },
+  { slug: 'employment',       title: 'Employment',                 weightPct: '15%', description: 'Unemployment · LFPR · sectoral',        glowColor: 'orange' as const, icon: Briefcase,     link: '/youth-index' },
+  { slug: 'health',           title: 'Health',                     weightPct: '15%', description: 'Skilled births · HIV · mortality',      glowColor: 'red'    as const, icon: HeartPulse,    link: '/youth-index' },
+  { slug: 'entrepreneurship', title: 'Entrepreneurship',           weightPct: '15%', description: 'Startups · credit · IP · digital',      glowColor: 'green'  as const, icon: Rocket,        link: '/youth-index' },
+  { slug: 'peace-security',   title: 'Peace & Security',           weightPct: '10%', description: 'IDPs · trafficking · extremism',        glowColor: 'green'  as const, icon: Shield,        link: '/youth-index' },
+  { slug: 'access-to-justice',title: 'Access to Justice',          weightPct: '10%', description: 'Pre-trial · prison · juvenile',         glowColor: 'purple' as const, icon: Scale,         link: '/youth-index' },
 ];
 
 interface PlatformStats {
@@ -53,9 +55,13 @@ const QuickStats = () => {
     staleTime: 5 * 60_000,
   });
 
-  const dimensionAvg = (key: 'educationScore' | 'healthScore' | 'employmentScore' | 'innovationScore'): number | null => {
+  // Each tile maps to a theme slug in the new 7-theme model. The API returns
+  // `dimensions` keyed by slug; we also accept the legacy flat fields as a fallback.
+  const dimensionAvg = (themeSlug: string, legacyField?: string): number | null => {
     if (!Array.isArray(rankings) || rankings.length === 0) return null;
-    const vals = rankings.map((r) => r[key]).filter((v) => typeof v === 'number');
+    const vals = rankings
+      .map((r) => (r?.dimensions?.[themeSlug] ?? (legacyField ? r?.[legacyField] : undefined)))
+      .filter((v) => typeof v === 'number');
     if (!vals.length) return null;
     return vals.reduce((a, b) => a + b, 0) / vals.length;
   };
@@ -64,37 +70,25 @@ const QuickStats = () => {
   const latestYear = platformStats?.dataYearRange?.latest ?? RANKINGS_YEAR;
 
   // Compose every tile's `value` / `trend` from real numbers. Anything
-  // unavailable falls through as "—" — never a guess.
+  // unavailable falls through as "—" — never a guess. Tile `slug` matches
+  // a theme slug (or a short alias that maps to one).
+  const SLUG_TO_THEME: Record<string, { theme: string; legacy?: string }> = {
+    demography:          { theme: 'youth-demography-participation', legacy: 'civicScore' },
+    education:           { theme: 'education',                       legacy: 'educationScore' },
+    employment:          { theme: 'employment',                      legacy: 'employmentScore' },
+    health:              { theme: 'health',                          legacy: 'healthScore' },
+    entrepreneurship:    { theme: 'entrepreneurship',                legacy: 'innovationScore' },
+    'peace-security':    { theme: 'peace-security' },
+    'access-to-justice': { theme: 'access-to-justice' },
+  };
+
   const liveStats = statsData.map((s) => {
-    let value = '—';
-    let trend = 'No data';
-    let description = s.description;
-    if (s.slug === 'population') {
-      const countries = platformStats?.totalCountries;
-      const indicators = platformStats?.totalIndicators;
-      const dataPoints = platformStats?.totalDataPoints;
-      const withData = platformStats?.countriesWithData;
-      if (countries != null) {
-        value = withData != null ? `${withData}/${countries}` : `${countries}`;
-        trend = 'Live';
-        description = `Countries with live data${
-          indicators != null ? ` · ${indicators} indicators` : ''
-        }${dataPoints != null ? ` · ${dataPoints.toLocaleString()} data points` : ''}`;
-      }
-    } else if (s.slug === 'education') {
-      const v = dimensionAvg('educationScore');
-      if (v != null) { value = fmtScore(v); trend = 'Live'; }
-    } else if (s.slug === 'health') {
-      const v = dimensionAvg('healthScore');
-      if (v != null) { value = fmtScore(v); trend = 'Live'; }
-    } else if (s.slug === 'employment') {
-      const v = dimensionAvg('employmentScore');
-      if (v != null) { value = fmtScore(v); trend = 'Live'; }
-    } else if (s.slug === 'entrepreneurship') {
-      const v = dimensionAvg('innovationScore');
-      if (v != null) { value = fmtScore(v); trend = 'Live'; }
-    }
-    return { ...s, value, trend, description };
+    const mapping = SLUG_TO_THEME[s.slug];
+    if (!mapping) return { ...s, value: '—', trend: 'No data' };
+    const v = dimensionAvg(mapping.theme, mapping.legacy);
+    return v != null
+      ? { ...s, value: fmtScore(v), trend: 'Live' }
+      : { ...s, value: '—',         trend: 'No data' };
   });
 
   return (
@@ -120,62 +114,72 @@ const QuickStats = () => {
           <Content
             as="p"
             id="home.quick_stats.subtitle"
-            fallback="Explore essential data points on African youth across our five core thematic areas."
+            fallback="Real youth data drawn from the AYIMS template, across our seven core thematic areas covering all 54 African countries."
             className="max-w-[700px] text-sm sm:text-base text-[#A89070] md:text-lg"
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+        {/* Flex-wrap layout: each card has a comfortable basis and can grow.
+            On wide screens all 7 fit in one row; on narrower screens they
+            wrap and the partial bottom row is centered automatically. */}
+        <div className="flex flex-wrap justify-center gap-3 md:gap-4">
           {liveStats.map((stat, index) => {
             const isLive = stat.trend === 'Live';
             const trendClass = isLive
               ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30'
               : 'bg-gray-500/15 text-gray-400 ring-1 ring-gray-500/30';
-            const trendLabel = isLive
-              ? `Live · ${latestYear}`
-              : 'Awaiting upload';
+            const trendLabel = isLive ? `Live · ${latestYear}` : 'Awaiting upload';
             return (
-              <Link key={stat.slug} to={stat.link} className="block group">
+              <Link
+                key={stat.slug}
+                to={stat.link}
+                className="block group basis-[150px] sm:basis-[180px] md:basis-[200px] flex-grow max-w-[260px]"
+              >
                 <GlowCard
                   glowColor={stat.glowColor}
                   customSize
                   className="w-full h-full !aspect-auto cursor-pointer transition-transform duration-300 group-hover:scale-[1.02]"
                 >
-                  <div className="relative z-10 flex flex-col justify-between h-full p-2">
-                    <div className="flex items-start justify-between">
-                      <div>
+                  <div className="relative z-10 flex flex-col justify-between h-full p-3 gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
                         <Content
                           as="p"
                           id={`home.quick_stats.${stat.slug}.title`}
                           fallback={stat.title}
-                          className="text-xs sm:text-sm font-medium text-gray-400 mb-1"
+                          className="text-[11px] sm:text-xs font-medium text-gray-400 leading-snug line-clamp-2"
                         />
-                        <h3 className="text-3xl sm:text-4xl font-bold text-white">{stat.value}</h3>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-white mt-1 tabular-nums">{stat.value}</h3>
                       </div>
-                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10">
-                        <stat.icon className="w-5 h-5 text-white/80" />
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 shrink-0">
+                        <stat.icon className="w-4 h-4 text-white/80" />
                       </div>
+                    </div>
+
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">weight</span>
+                      <span className="text-xs font-semibold text-white/80">{stat.weightPct}</span>
                     </div>
 
                     <Content
                       as="p"
                       id={`home.quick_stats.${stat.slug}.description`}
                       fallback={stat.description}
-                      className="text-xs text-gray-500 mt-3"
+                      className="text-[10px] sm:text-xs text-gray-500 leading-snug line-clamp-2"
                     />
 
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${trendClass}`}>
+                    <div className="flex items-center justify-between gap-2 mt-auto">
+                      <span className={`inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium ${trendClass}`}>
                         {trendLabel}
                       </span>
                     </div>
 
-                    <div className="mt-3 h-8 flex items-end gap-[2px]">
-                      {[...Array(12)].map((_, i) => (
+                    <div className="h-6 flex items-end gap-[2px]">
+                      {[...Array(10)].map((_, i) => (
                         <div
                           key={i}
-                          className="flex-1 rounded-t bg-white/20 group-hover:bg-white/30 transition-colors"
-                          style={{ height: `${20 + Math.sin(i * 0.8 + index) * 30 + 30}%` }}
+                          className="flex-1 rounded-t bg-white/15 group-hover:bg-white/25 transition-colors"
+                          style={{ height: `${25 + Math.sin(i * 0.8 + index) * 30 + 25}%` }}
                         />
                       ))}
                     </div>

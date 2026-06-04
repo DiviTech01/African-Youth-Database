@@ -221,11 +221,16 @@ async function main() {
         previousRank = prev?.rank ?? null;
       }
 
-      const edu = 20 + seededRandom() * 60;
-      const emp = 20 + seededRandom() * 60;
-      const hlt = 20 + seededRandom() * 60;
-      const civ = 20 + seededRandom() * 60;
-      const inn = 20 + seededRandom() * 60;
+      const r = () => Math.round((20 + seededRandom() * 60) * 100) / 100;
+      const dimensionScores = {
+        'youth-demography-participation': r(),
+        'education': r(),
+        'employment': r(),
+        'health': r(),
+        'entrepreneurship': r(),
+        'peace-security': r(),
+        'access-to-justice': r(),
+      };
 
       await prisma.youthIndexScore.upsert({
         where: {
@@ -239,11 +244,7 @@ async function main() {
           countryId: s.countryId,
           year,
           overallScore: Math.round(s.score * 100) / 100,
-          educationScore: Math.round(edu * 100) / 100,
-          employmentScore: Math.round(emp * 100) / 100,
-          healthScore: Math.round(hlt * 100) / 100,
-          civicScore: Math.round(civ * 100) / 100,
-          innovationScore: Math.round(inn * 100) / 100,
+          dimensionScores,
           rank,
           previousRank,
           rankChange: previousRank ? previousRank - rank : null,

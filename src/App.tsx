@@ -25,6 +25,9 @@ import Index from "./pages/Index";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import NotFound from "./pages/NotFound";
+// OAuth bridge — must be static so it's available on the first paint
+// after Supabase redirects here with tokens in the URL hash.
+import AuthCallback from "./pages/AuthCallback";
 
 // Lazy-loaded pages
 const Explore = lazy(() => import("./pages/Explore"));
@@ -90,6 +93,12 @@ const App = () => (
                 <Route path="/auth/signin" element={<PageTransition><SignIn /></PageTransition>} />
                 <Route path="/auth/signup" element={<PageTransition><SignUp /></PageTransition>} />
               </Route>
+
+              {/* OAuth bridge — accessible to everyone (signed-in or not).
+                  Supabase redirects here after Google sign-in; the page reads
+                  tokens from the URL hash and either installs the session
+                  (web) or bounces to the afyo:// deep link (mobile). */}
+              <Route path="/auth-callback" element={<AuthCallback />} />
 
               {/* ── Public marketing pages (minimal layout) ── */}
               <Route path="/about" element={<PublicLayout><PageTransition><About /></PageTransition></PublicLayout>} />

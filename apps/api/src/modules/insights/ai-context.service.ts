@@ -2,6 +2,25 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../common/cache.service';
 
+const SHORT_THEME_LABELS: Record<string, string> = {
+  'youth-demography-participation': 'Demo',
+  'education': 'Edu',
+  'employment': 'Emp',
+  'health': 'Health',
+  'entrepreneurship': 'Entre',
+  'peace-security': 'Peace',
+  'access-to-justice': 'Just',
+};
+
+function formatDimensions(dimensionScores: unknown): string {
+  const d = (dimensionScores && typeof dimensionScores === 'object')
+    ? (dimensionScores as Record<string, number>)
+    : {};
+  return Object.keys(SHORT_THEME_LABELS)
+    .map((slug) => `${SHORT_THEME_LABELS[slug]}: ${(typeof d[slug] === 'number' ? d[slug] : 50).toFixed(1)}`)
+    .join(' | ');
+}
+
 @Injectable()
 export class AiContextService {
   private readonly logger = new Logger(AiContextService.name);
@@ -197,7 +216,7 @@ ${regionalPeers}
     });
 
     return `Youth Index Rankings (${latestYear.year}):\n` + rankings.map(r =>
-      `#${r.rank} ${r.country.name} (${r.country.isoCode3}) — Score: ${r.overallScore.toFixed(1)} | Edu: ${r.educationScore.toFixed(1)} | Emp: ${r.employmentScore.toFixed(1)} | Health: ${r.healthScore.toFixed(1)} | Civic: ${r.civicScore.toFixed(1)} | Innovation: ${r.innovationScore.toFixed(1)} | Tier: ${r.tier} | Region: ${r.country.region}`
+      `#${r.rank} ${r.country.name} (${r.country.isoCode3}) — Score: ${r.overallScore.toFixed(1)} | ${formatDimensions(r.dimensionScores)} | Tier: ${r.tier} | Region: ${r.country.region}`
     ).join('\n');
   }
 
@@ -278,7 +297,7 @@ ${regionalPeers}
     });
     if (!scores.length) return 'No Youth Index data.';
     return scores.map(s =>
-      `${s.year}: Score ${s.overallScore.toFixed(1)} (Rank #${s.rank}, ${s.tier}) | Edu: ${s.educationScore.toFixed(1)} | Emp: ${s.employmentScore.toFixed(1)} | Health: ${s.healthScore.toFixed(1)} | Civic: ${s.civicScore.toFixed(1)} | Innovation: ${s.innovationScore.toFixed(1)}`
+      `${s.year}: Score ${s.overallScore.toFixed(1)} (Rank #${s.rank}, ${s.tier}) | ${formatDimensions(s.dimensionScores)}`
     ).join('\n');
   }
 

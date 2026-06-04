@@ -4,6 +4,17 @@ import { CacheService } from '../../common/cache.service';
 import { ExportQueryDto } from './export.dto';
 import { formatRegion } from '../../common/utils/format';
 
+const EXPORT_THEME_LABELS: Record<string, string> = {
+  'youth-demography-participation': 'Youth Demography & Participation',
+  'education': 'Education',
+  'employment': 'Employment',
+  'health': 'Health',
+  'entrepreneurship': 'Entrepreneurship',
+  'peace-security': 'Peace & Security',
+  'access-to-justice': 'Access to Justice',
+};
+const EXPORT_THEME_ORDER = Object.keys(EXPORT_THEME_LABELS);
+
 interface ExportRow {
   country: string;
   isoCode: string;
@@ -355,11 +366,13 @@ export class ExportService {
   <p>Rank: <strong>#${youthIndex.rank}</strong> of 54 &nbsp; | &nbsp; Tier: <span class="tier tier-${youthIndex.tier}">${youthIndex.tier.replace(/_/g, ' ')}</span></p>
   <table>
     <tr><th>Dimension</th><th>Score</th></tr>
-    <tr><td>Education</td><td>${youthIndex.educationScore.toFixed(2)}</td></tr>
-    <tr><td>Employment</td><td>${youthIndex.employmentScore.toFixed(2)}</td></tr>
-    <tr><td>Health</td><td>${youthIndex.healthScore.toFixed(2)}</td></tr>
-    <tr><td>Civic Engagement</td><td>${youthIndex.civicScore.toFixed(2)}</td></tr>
-    <tr><td>Innovation</td><td>${youthIndex.innovationScore.toFixed(2)}</td></tr>
+    ${EXPORT_THEME_ORDER.map((slug) => {
+      const d = (youthIndex.dimensionScores && typeof youthIndex.dimensionScores === 'object')
+        ? (youthIndex.dimensionScores as Record<string, number>)
+        : {};
+      const score = typeof d[slug] === 'number' ? d[slug] : 50;
+      return `<tr><td>${EXPORT_THEME_LABELS[slug]}</td><td>${score.toFixed(2)}</td></tr>`;
+    }).join('\n    ')}
   </table>`
       : '<h2>Youth Index Score</h2><p>No index data available yet. Run compute-all to generate.</p>'
   }
