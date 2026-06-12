@@ -17,8 +17,10 @@ import {
   ArrowRight,
   Sparkles,
   MapPin,
-  BookOpen
+  BookOpen,
+  Smartphone
 } from 'lucide-react';
+import { ANDROID_APK_URL } from '@/config/app-download';
 
 // Counts up to `target` once the element scrolls into view. `target` may be
 // null while the real value is still loading — in that case we render the
@@ -260,6 +262,25 @@ const Landing = () => {
                 </Button>
               </Link>
             </motion.div>
+
+            {ANDROID_APK_URL && (
+              <motion.div
+                className="mt-6 flex justify-center"
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+                custom={0.55}
+              >
+                <a
+                  href={ANDROID_APK_URL}
+                  download
+                  className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-pan-green-500/50 transition-colors"
+                >
+                  <Smartphone className="h-4 w-4 text-pan-green-500" />
+                  <Content as="span" id="landing.hero.download_app" fallback="Download the Android app" />
+                </a>
+              </motion.div>
+            )}
           </div>
         </div>
       </section>

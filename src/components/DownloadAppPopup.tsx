@@ -4,15 +4,11 @@ import { Smartphone, X, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Content } from '@/components/cms';
+import { ANDROID_APK_URL } from '@/config/app-download';
 
 const STORAGE_KEY = 'ayd_app_download_dismissed';
 
-// The Android APK lives as a GitHub Release asset (a permanent public URL).
-// VITE_APK_URL can override this in the deploy env if the APK is later rehosted
-// (e.g. on R2). If neither resolves, the popup stays hidden — no broken link.
-const APK_URL =
-  (import.meta.env.VITE_APK_URL as string | undefined)?.trim() ||
-  'https://github.com/DiviTech01/ayo-mobile/releases/download/v1.0.0/AfYO-Android.apk';
+const APK_URL = ANDROID_APK_URL;
 
 function isAndroid(): boolean {
   if (typeof navigator === 'undefined') return false;

@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Linkedin, Facebook, CheckCircle2, Loader2 } from 'lucide-react';
+import { Linkedin, Facebook, CheckCircle2, Loader2, Smartphone } from 'lucide-react';
 import { Content } from '@/components/cms';
 import { useContentText } from '@/contexts/ContentContext';
 import { LEGAL_LINKS } from '@/config/legal';
+import { ANDROID_APK_URL } from '@/config/app-download';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -93,6 +94,17 @@ const Footer = () => {
               <Facebook className="h-5 w-5" />
             </a>
           </div>
+
+          {ANDROID_APK_URL && (
+            <a
+              href={ANDROID_APK_URL}
+              download
+              className="mt-5 inline-flex items-center gap-2 rounded-lg border border-pan-green-500/40 bg-pan-green-500/10 px-3 py-2 text-xs font-medium text-foreground hover:bg-pan-green-500/20 transition-colors"
+            >
+              <Smartphone className="h-4 w-4 text-pan-green-500" />
+              <Content as="span" id="footer.download_app" fallback="Get the Android app" />
+            </a>
+          )}
         </div>
 
         <div>
