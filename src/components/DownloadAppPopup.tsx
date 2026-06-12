@@ -18,11 +18,6 @@ function isAndroid(): boolean {
   return /android/i.test(navigator.userAgent);
 }
 
-function isMobile(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return /android|iphone|ipad|ipod/i.test(navigator.userAgent);
-}
-
 /**
  * Bottom banner inviting phone visitors to install the AYO Android app.
  * - Only renders when VITE_APK_URL is configured (no broken links otherwise).
@@ -35,7 +30,10 @@ const DownloadAppPopup = () => {
 
   useEffect(() => {
     if (!APK_URL) return; // nothing to download yet
-    if (!isMobile()) return; // the CTA is "download to your phone"
+    // The APK is Android-only — iOS can't install .apk files (no sideloading),
+    // so only prompt Android phones. iOS gets an App Store/TestFlight link here
+    // once an iOS build exists (see APP_STORE_URL handling below).
+    if (!isAndroid()) return;
     const dismissed = localStorage.getItem(STORAGE_KEY);
     if (dismissed) return;
     // Small delay so it doesn't fight the first paint / cookie banner.
@@ -81,7 +79,7 @@ const DownloadAppPopup = () => {
                 <Content
                   as="p"
                   id="app_download.subtitle"
-                  fallback={isAndroid() ? 'Install the Android app for the full experience on your phone.' : 'Available for Android. Open this link on an Android phone to install.'}
+                  fallback="Install the Android app for the full experience on your phone."
                   className="text-xs text-muted-foreground"
                 />
               </div>
