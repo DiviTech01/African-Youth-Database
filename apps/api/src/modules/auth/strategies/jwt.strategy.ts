@@ -122,9 +122,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!hsSecret) {
       console.error('[JwtStrategy] SUPABASE_JWT_SECRET is not set — HS256 tokens (legacy) cannot validate');
     } else {
-      console.log(
-        `[JwtStrategy] HS256 secret loaded · length=${hsSecret.length} · prefix=${hsSecret.slice(0, 8)}…`,
-      );
+      console.log(`[JwtStrategy] HS256 secret loaded · length=${hsSecret.length}`);
     }
     if (!jwksUrl) {
       console.error('[JwtStrategy] SUPABASE_URL is not set — ES256/RS256 tokens cannot validate (no JWKS endpoint)');

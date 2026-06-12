@@ -11,5 +11,6 @@ import { ContentModule } from '../content/content.module'; // for R2Service
   imports: [ContentModule],
   controllers: [NewsletterController, NewsletterAdminController],
   providers: [NewsletterService, NewsletterScheduler],
+  exports: [NewsletterService],
 })
 export class NewsletterModule {}

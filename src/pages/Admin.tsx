@@ -20,7 +20,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { getAdminReports } from '@/services/adminContent';
+import { api, type DocumentSummary } from '@/lib/api-client';
 import { useAdminPreviewMode } from '@/hooks/use-admin-preview-mode';
 import { useNavigate } from 'react-router-dom';
 
@@ -136,7 +136,13 @@ const Admin = () => {
     return userRows.filter((u) => (u.name?.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)));
   }, [userRows, userSearch]);
 
-  const adminReportsCount = useMemo(() => getAdminReports().length, []);
+  // Real document count from the documents API (replaces the old localStorage store).
+  const { data: docsForCount } = useQuery<DocumentSummary[]>({
+    queryKey: ['public-documents'],
+    queryFn: () => api.documents.list({ limit: 500 }),
+    staleTime: 60_000,
+  });
+  const adminReportsCount = docsForCount?.length ?? 0;
 
   return (
     <div className="space-y-6 max-w-6xl">

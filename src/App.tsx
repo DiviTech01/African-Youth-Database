@@ -11,6 +11,7 @@ import { ContentProvider } from "@/contexts/ContentContext";
 import { UserPreferencesProvider } from "@/contexts/UserPreferencesContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import CookieConsent from "@/components/CookieConsent";
+import DownloadAppPopup from "@/components/DownloadAppPopup";
 import PublicLayout from "@/layouts/PublicLayout";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import PageTransition from "@/components/PageTransition";
@@ -172,6 +173,7 @@ const App = () => (
           </ContentProvider>
           </AuthProvider>
           <CookieConsent />
+          <DownloadAppPopup />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -6,6 +6,9 @@ import {
   PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
+import {
+  useCountries, useIndicators, useMultipleTimeSeries, useYouthIndexRankings,
+} from '@/hooks/useData';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +23,7 @@ import {
 import {
   Plus, Save, Share2, Pencil, Trash2, Check,
   BarChart3, TrendingUp, AreaChart as AreaChartIcon, Radar as RadarIcon, Hash,
-  LayoutDashboard, Users, Star, Clock, Sparkles, ArrowRight,
+  LayoutDashboard, Users, Star, Clock, Sparkles, ArrowRight, Loader2,
 } from 'lucide-react';
 import { useUserPreferences } from '@/contexts/UserPreferencesContext';
 import { useToast } from '@/hooks/use-toast';
@@ -37,8 +40,23 @@ interface Widget {
   chartType: ChartType;
   indicator: string;
   countries: string[];
-  data: Record<string, unknown>[];
 }
+
+// The dimensions surfaced by the radar widget map 1:1 to the seven youth-index
+// theme slugs returned by /youth-index/rankings (see normalizeYouthIndex in
+// services/api.ts). Each entry is [display label, dimension slug].
+const RADAR_DIMENSIONS: [string, string][] = [
+  ['Education', 'education'],
+  ['Health', 'health'],
+  ['Employment', 'employment'],
+  ['Entrepreneurship', 'entrepreneurship'],
+  ['Demography', 'youth-demography-participation'],
+  ['Peace & Security', 'peace-security'],
+  ['Justice', 'access-to-justice'],
+];
+
+// Year window used to pull real time-series rows for the line/area/bar widgets.
+const DASHBOARD_YEAR_RANGE: [number, number] = [2015, new Date().getFullYear()];
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -74,40 +92,6 @@ const LEGACY_STORAGE_KEYS = ['ayd_user_widgets_v1', 'ayd_user_widgets_v2', 'ayd_
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-// ── Mock data generators ───────────────────────────────────────────────────────
-
-function generateTimeSeriesData(countries: string[]) {
-  const years = [2018, 2019, 2020, 2021, 2022, 2023];
-  return years.map((year) => {
-    const entry: Record<string, unknown> = { year: year.toString() };
-    countries.forEach((c) => {
-      entry[c] = Math.round(40 + Math.random() * 50);
-    });
-    return entry;
-  });
-}
-
-function generateRadarData(countries: string[]) {
-  const dimensions = ['Education', 'Health', 'Employment', 'Digital', 'Civic', 'Environment'];
-  return dimensions.map((dim) => {
-    const entry: Record<string, unknown> = { dimension: dim };
-    countries.forEach((c) => {
-      entry[c] = Math.round(30 + Math.random() * 70);
-    });
-    return entry;
-  });
-}
-
-function generateStatData() {
-  return [{ value: Math.round(40 + Math.random() * 55), change: +(Math.random() * 10 - 3).toFixed(1) }];
-}
-
-function generateData(chartType: ChartType, countries: string[]) {
-  if (chartType === 'stat') return generateStatData();
-  if (chartType === 'radar') return generateRadarData(countries);
-  return generateTimeSeriesData(countries);
-}
-
 // ── Default widgets ────────────────────────────────────────────────────────────
 
 const EMPLOYMENT_COUNTRIES = ['Ghana', 'Rwanda', 'Senegal', 'Kenya', 'Morocco'];
@@ -119,9 +103,8 @@ const defaultWidgets: Widget[] = [
     id: 'w1',
     title: 'Cross-Dimensional Profile',
     chartType: 'radar',
-    indicator: 'Multi-dimension comparison',
+    indicator: 'Youth Index dimensions',
     countries: RADAR_COUNTRIES,
-    data: generateRadarData(RADAR_COUNTRIES),
   },
   {
     id: 'w2',
@@ -129,7 +112,6 @@ const defaultWidgets: Widget[] = [
     chartType: 'line',
     indicator: 'Youth Unemployment Rate',
     countries: EMPLOYMENT_COUNTRIES,
-    data: generateTimeSeriesData(EMPLOYMENT_COUNTRIES),
   },
   {
     id: 'w3',
@@ -137,7 +119,6 @@ const defaultWidgets: Widget[] = [
     chartType: 'bar',
     indicator: 'Youth Literacy Rate',
     countries: ['Nigeria', 'Kenya', 'South Africa'],
-    data: generateTimeSeriesData(['Nigeria', 'Kenya', 'South Africa']),
   },
   {
     id: 'w4',
@@ -145,7 +126,6 @@ const defaultWidgets: Widget[] = [
     chartType: 'area',
     indicator: 'Health Access Index',
     countries: HEALTH_COUNTRIES,
-    data: generateTimeSeriesData(HEALTH_COUNTRIES),
   },
 ];
 
@@ -167,20 +147,214 @@ function isStaleDefaults(widgets: Widget[]): boolean {
   return widgets.every((w) => w?.title && KNOWN_DEFAULT_TITLES.has(w.title));
 }
 
+// ── Real-data fetching ───────────────────────────────────────────────────────
+// Every widget reads live values from the AYO database. There is no synthetic
+// fallback: while queries resolve the chart shows a spinner, and when a country
+// / indicator combination has no uploaded rows the widget says "No data yet".
+
+interface WidgetData {
+  isLoading: boolean;
+  isEmpty: boolean;
+  // Time-series rows keyed by country display name: { year, [country]: value }.
+  rows: Record<string, unknown>[];
+  // The subset of the widget's countries that actually have data (drives the
+  // chart series + legend so we never plot an empty line for a missing country).
+  series: string[];
+  // Radar rows: { dimension, [country]: score }.
+  radarRows: Record<string, unknown>[];
+  // Stat payload for the single-number widget.
+  stat: { value: number; change: number | null } | null;
+}
+
+// Resolves the widget's display-name `countries` to their database ids and
+// pulls real time-series rows (one query per country) for the chosen indicator.
+function useTimeSeriesWidgetData(widget: Widget): WidgetData {
+  const countriesQ = useCountries();
+  const indicatorsQ = useIndicators();
+
+  const indicatorRow = useMemo(() => {
+    if (!indicatorsQ.data) return null;
+    return (
+      indicatorsQ.data.find(
+        (i) => i.name === widget.indicator || i.slug === widget.indicator,
+      ) ?? null
+    );
+  }, [indicatorsQ.data, widget.indicator]);
+
+  // Pair each requested country name with its resolved id (skipping unknowns).
+  const resolved = useMemo(() => {
+    if (!countriesQ.data) return [] as { name: string; id: string }[];
+    return widget.countries
+      .map((name) => {
+        const row = countriesQ.data!.find((c) => c.name === name);
+        return row ? { name, id: row.id } : null;
+      })
+      .filter((x): x is { name: string; id: string } => x !== null);
+  }, [countriesQ.data, widget.countries]);
+
+  const countryIds = resolved.map((r) => r.id);
+  const queries = useMultipleTimeSeries(
+    countryIds,
+    indicatorRow?.id ?? '',
+    DASHBOARD_YEAR_RANGE,
+  );
+
+  const isLoading =
+    countriesQ.isLoading ||
+    indicatorsQ.isLoading ||
+    (!!indicatorRow && countryIds.length > 0 && queries.some((q) => q.isLoading));
+
+  // Merge per-country series into recharts rows keyed by year, tagging each
+  // value with the country display name (matching the chart's dataKey).
+  const { rows, series } = useMemo(() => {
+    const byYear = new Map<number, Record<string, unknown>>();
+    const present: string[] = [];
+    resolved.forEach((r, idx) => {
+      const ts = queries[idx]?.data;
+      const points = ts?.data ?? [];
+      if (points.length > 0) present.push(r.name);
+      points.forEach((p) => {
+        const row = byYear.get(p.year) ?? { year: String(p.year) };
+        row[r.name] = p.value;
+        byYear.set(p.year, row);
+      });
+    });
+    const sorted = [...byYear.values()].sort(
+      (a, b) => Number(a.year) - Number(b.year),
+    );
+    return { rows: sorted, series: present };
+  }, [resolved, queries]);
+
+  return {
+    isLoading,
+    isEmpty: !isLoading && (rows.length === 0 || series.length === 0),
+    rows,
+    series,
+    radarRows: [],
+    stat: null,
+  };
+}
+
+// Radar widget: pulls per-dimension youth-index scores (real, computed from
+// uploaded AYIMS values) for the latest available year.
+function useRadarWidgetData(widget: Widget): WidgetData {
+  const countriesQ = useCountries();
+  const rankingsQ = useYouthIndexRankings();
+
+  const isLoading = countriesQ.isLoading || rankingsQ.isLoading;
+
+  const { radarRows, series } = useMemo(() => {
+    const rankings = rankingsQ.data ?? [];
+    const countries = countriesQ.data ?? [];
+    const present: string[] = [];
+    // Map each requested country name → its youth-index row (by id).
+    const scoreByName = new Map<string, Record<string, number>>();
+    widget.countries.forEach((name) => {
+      const country = countries.find((c) => c.name === name);
+      if (!country) return;
+      const row = rankings.find((r) => r.countryId === country.id);
+      if (!row || !row.dimensions) return;
+      scoreByName.set(name, row.dimensions as unknown as Record<string, number>);
+      present.push(name);
+    });
+    const rows = RADAR_DIMENSIONS.map(([label, slug]) => {
+      const entry: Record<string, unknown> = { dimension: label };
+      present.forEach((name) => {
+        const dims = scoreByName.get(name);
+        if (dims && typeof dims[slug] === 'number') entry[name] = dims[slug];
+      });
+      return entry;
+    });
+    return { radarRows: rows, series: present };
+  }, [rankingsQ.data, countriesQ.data, widget.countries]);
+
+  return {
+    isLoading,
+    isEmpty: !isLoading && series.length === 0,
+    rows: [],
+    series,
+    radarRows,
+    stat: null,
+  };
+}
+
+// Stat widget: latest real index score for the widget's first country, with the
+// year-over-year change derived from the two most recent scored years.
+function useStatWidgetData(widget: Widget): WidgetData {
+  const countriesQ = useCountries();
+  const rankingsQ = useYouthIndexRankings();
+
+  const isLoading = countriesQ.isLoading || rankingsQ.isLoading;
+
+  const stat = useMemo(() => {
+    const countries = countriesQ.data ?? [];
+    const rankings = rankingsQ.data ?? [];
+    const targetName = widget.countries[0];
+    if (!targetName) return null;
+    const country = countries.find((c) => c.name === targetName);
+    if (!country) return null;
+    const row = rankings.find((r) => r.countryId === country.id);
+    if (!row || typeof row.indexScore !== 'number') return null;
+    // `rankChange` (vs. previous rank) is the only real period-over-period
+    // signal the rankings endpoint exposes; surface null when unavailable.
+    return {
+      value: Math.round(row.indexScore),
+      change: typeof row.rankChange === 'number' ? row.rankChange : null,
+    };
+  }, [countriesQ.data, rankingsQ.data, widget.countries]);
+
+  return {
+    isLoading,
+    isEmpty: !isLoading && stat === null,
+    rows: [],
+    series: [],
+    radarRows: [],
+    stat,
+  };
+}
+
 // ── Chart rendering ────────────────────────────────────────────────────────────
 
+const ChartLoading = () => (
+  <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-500">
+    <Loader2 className="h-5 w-5 animate-spin text-emerald-400/70" />
+    <span className="text-xs">Loading data…</span>
+  </div>
+);
+
+const ChartEmpty = () => (
+  <div className="flex flex-col items-center justify-center h-full gap-1 text-gray-500">
+    <span className="text-sm font-medium">No data yet</span>
+    <span className="text-[11px] text-gray-600 text-center px-4">
+      No values uploaded for this selection.
+    </span>
+  </div>
+);
+
 function WidgetChart({ widget }: { widget: Widget }) {
-  const { chartType, countries, data } = widget;
+  const { chartType } = widget;
+
+  // One hook per chart family; only the matching one fires real queries (the
+  // others short-circuit on empty ids), so this stays cheap.
+  const timeSeries = useTimeSeriesWidgetData(widget);
+  const radar = useRadarWidgetData(widget);
+  const statData = useStatWidgetData(widget);
 
   if (chartType === 'stat') {
-    const stat = data[0] as { value: number; change: number };
-    const positive = stat.change >= 0;
+    if (statData.isLoading) return <ChartLoading />;
+    if (statData.isEmpty || !statData.stat) return <ChartEmpty />;
+    const { value, change } = statData.stat;
+    const positive = (change ?? 0) >= 0;
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2">
-        <span className="text-5xl font-bold tabular-nums">{stat.value}%</span>
-        <span className={`text-sm font-medium ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
-          {positive ? '+' : ''}{stat.change}% from last year
-        </span>
+        <span className="text-5xl font-bold tabular-nums">{value}</span>
+        {change !== null ? (
+          <span className={`text-sm font-medium ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
+            {positive ? '+' : ''}{change} rank change
+          </span>
+        ) : (
+          <span className="text-sm font-medium text-gray-500">Youth Index score</span>
+        )}
       </div>
     );
   }
@@ -190,13 +364,15 @@ function WidgetChart({ widget }: { widget: Widget }) {
   const tickStyle = { fontSize: 10, fill: 'rgba(255,255,255,0.45)' };
 
   if (chartType === 'radar') {
+    if (radar.isLoading) return <ChartLoading />;
+    if (radar.isEmpty) return <ChartEmpty />;
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <RadarChart data={data} cx="50%" cy="50%" outerRadius="72%">
+        <RadarChart data={radar.radarRows} cx="50%" cy="50%" outerRadius="72%">
           <PolarGrid stroke="rgba(255,255,255,0.08)" />
           <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.55)' }} />
           <PolarRadiusAxis tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.3)' }} />
-          {countries.map((c, i) => (
+          {radar.series.map((c, i) => (
             <Radar
               key={c}
               name={c}
@@ -229,11 +405,14 @@ function WidgetChart({ widget }: { widget: Widget }) {
     );
   }
 
+  if (timeSeries.isLoading) return <ChartLoading />;
+  if (timeSeries.isEmpty) return <ChartEmpty />;
+
   const ChartWrapper = chartType === 'line' ? LineChart : chartType === 'area' ? AreaChart : BarChart;
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <ChartWrapper data={data} margin={margin}>
+      <ChartWrapper data={timeSeries.rows} margin={margin}>
         <CartesianGrid strokeDasharray="0" stroke="rgba(255,255,255,0.04)" vertical={false} />
         <XAxis
           dataKey="year"
@@ -262,7 +441,7 @@ function WidgetChart({ widget }: { widget: Widget }) {
           iconType="circle"
           iconSize={8}
         />
-        {countries.map((c, i) => {
+        {timeSeries.series.map((c, i) => {
           const color = CHART_COLORS[i % CHART_COLORS.length];
           if (chartType === 'line') {
             return <Line key={c} type="monotone" dataKey={c} stroke={color} strokeWidth={2.2} dot={{ r: 3, fill: color }} activeDot={{ r: 5 }} />;
@@ -392,20 +571,17 @@ const Dashboard = () => {
     const countries = formCountries.length > 0 ? formCountries : ['Nigeria'];
 
     if (editingId) {
-      // Update existing widget — regenerate data only if shape-affecting fields changed
+      // Update existing widget. Data is fetched live from the API by
+      // WidgetChart, so there's nothing to regenerate here.
       setWidgets((prev) =>
         prev.map((w) => {
           if (w.id !== editingId) return w;
-          const shapeChanged =
-            w.chartType !== formChartType ||
-            JSON.stringify(w.countries) !== JSON.stringify(countries);
           return {
             ...w,
             title: formTitle.trim(),
             chartType: formChartType,
             indicator: formIndicator,
             countries,
-            data: shapeChanged ? generateData(formChartType, countries) : w.data,
           };
         }),
       );
@@ -417,7 +593,6 @@ const Dashboard = () => {
         chartType: formChartType,
         indicator: formIndicator,
         countries,
-        data: generateData(formChartType, countries),
       };
       setWidgets((prev) => [...prev, widget]);
       toast({ title: 'Widget added', description: `"${widget.title}" is on your dashboard.` });

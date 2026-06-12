@@ -15,7 +15,8 @@ export class NlqController {
   ) {}
 
   @Public()
-  @Throttle({ medium: { ttl: 60000, limit: 10 } })
+  // Anthropic-backed (real cost): cap to 10/min and 300/day per IP.
+  @Throttle({ medium: { ttl: 60000, limit: 10 }, long: { ttl: 86_400_000, limit: 300 } })
   @Post('query')
   @ApiOperation({
     summary: 'Ask a natural language question about African youth data',
@@ -49,7 +50,7 @@ export class NlqController {
    * Legacy alias for frontend compatibility
    */
   @Public()
-  @Throttle({ medium: { ttl: 60000, limit: 10 } })
+  @Throttle({ medium: { ttl: 60000, limit: 10 }, long: { ttl: 86_400_000, limit: 300 } })
   @Post('query/natural-language')
   @ApiOperation({ summary: 'Alias — natural language query (frontend compat)' })
   async queryAlias(@Body() dto: NlqQueryDto) {

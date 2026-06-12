@@ -40,7 +40,8 @@ export class AiChatController {
   constructor(private readonly aiChatService: AiChatService) {}
 
   @Public()
-  @Throttle({ medium: { ttl: 60000, limit: 10 } })
+  // Anthropic-backed (real cost): cap to 10/min and 300/day per IP.
+  @Throttle({ medium: { ttl: 60000, limit: 10 }, long: { ttl: 86_400_000, limit: 300 } })
   @Post('chat')
   @ApiOperation({
     summary: 'Chat with the African Youth Observatory AI assistant',

@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ExpertDirectoryService } from './expert-directory.service';
 import { ExpertSearchDto, CreateExpertDto, UpdateExpertDto } from './expert-directory.dto';
@@ -57,6 +58,9 @@ export class ExpertDirectoryController {
 
   @Post()
   @Public()
+  // Public self-registration, but rate-limited hard per IP to stop automated
+  // spam inserting unverified PII rows: max 3 submissions per hour per IP.
+  @Throttle({ default: { ttl: 3_600_000, limit: 3 } })
   @ApiOperation({
     summary: 'Register as an expert',
     description:

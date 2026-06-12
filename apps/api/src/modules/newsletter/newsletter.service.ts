@@ -299,6 +299,43 @@ export class NewsletterService {
     return updated;
   }
 
+  /**
+   * Ad-hoc broadcast used by the insight-reports feature: create an already-
+   * APPROVED campaign from a pre-built body and dispatch it in the background to
+   * the chosen audience (SUBSCRIBERS | USERS | BOTH). Reuses the same dispatch +
+   * dedupe + unsubscribe-token machinery as the monthly briefing. Returns the
+   * campaign row so the caller can report recipientCount / poll status.
+   */
+  async broadcastAdHoc(opts: {
+    title: string;
+    subject: string;
+    bodyHtml: string;
+    audience: NewsletterAudience;
+    attachments?: AttachmentLink[] | null;
+  }) {
+    if (!this.mail.isConfigured) {
+      throw new BadRequestException(
+        'Email service is not configured (RESEND_API_KEY missing) — cannot send.',
+      );
+    }
+    const campaign = await this.prisma.newsletterCampaign.create({
+      data: {
+        title: opts.title.trim(),
+        subject: opts.subject.trim(),
+        bodyHtml: opts.bodyHtml,
+        audience: opts.audience,
+        attachments: opts.attachments ? (opts.attachments as any) : undefined,
+        status: 'APPROVED',
+        approvedAt: new Date(),
+      },
+    });
+    // Background dispatch — do not await (Render kills long requests).
+    this.dispatch(campaign.id).catch((e) =>
+      this.logger.error(`ad-hoc dispatch failed for campaign ${campaign.id}: ${e?.message}`),
+    );
+    return campaign;
+  }
+
   /** Render the exact HTML recipients will receive (used by the preview UI). */
   async previewHtml(id: string): Promise<string> {
     const c = await this.getCampaign(id);

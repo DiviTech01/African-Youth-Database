@@ -78,7 +78,9 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger
+  // Swagger — only mounted outside production. In prod we don't want to
+  // advertise the full admin/auth/upload API surface at /api/docs.
+  const enableSwagger = !isProd || process.env.ENABLE_SWAGGER === 'true';
   const config = new DocumentBuilder()
     .setTitle('African Youth Observatory API')
     .setDescription(
@@ -126,8 +128,10 @@ World Bank, ILO, UNESCO, national statistics bureaus`,
     .addTag('platform', 'Platform stats and health checks')
     .build();
 
-  const document = SwaggerModule.createDocument(app as any, config);
-  SwaggerModule.setup('api/docs', app as any, document);
+  if (enableSwagger) {
+    const document = SwaggerModule.createDocument(app as any, config);
+    SwaggerModule.setup('api/docs', app as any, document);
+  }
 
   // Route aliases for frontend compatibility
   const expressApp = app.getHttpAdapter().getInstance();

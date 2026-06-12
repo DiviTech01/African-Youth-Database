@@ -57,7 +57,14 @@ const AuthCallback: React.FC = () => {
         if (fromMobile) {
           // Bounce to the app's deep link — pass the tokens through the fragment
           // so the mobile auth-callback handler can install the session.
-          const deepLink = `afyo://auth-callback#access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}`;
+          //
+          // The app sends its real return URL as `?return=` so we hit the right
+          // scheme: `exp://<lan-ip>:8081/--/auth-callback` in Expo Go, or
+          // `afyo://auth-callback` in a dev/production build. Older builds that
+          // don't send `return` fall back to the production scheme.
+          const returnTarget = query.get('return') || 'afyo://auth-callback';
+          const sep = returnTarget.includes('#') ? '&' : '#';
+          const deepLink = `${returnTarget}${sep}access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}`;
           setMobileDeepLink(deepLink);
           setStatus('mobile-bounce');
           // Try the redirect; if the OS doesn't have a handler the user sees the fallback button.

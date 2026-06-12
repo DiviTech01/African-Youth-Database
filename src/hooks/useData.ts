@@ -33,21 +33,12 @@ export const queryKeys = {
   indicatorValues: (filters: DataFilters) => ['data', 'values', filters] as const,
   timeSeries: (countryId: string, indicatorId: string, yearRange?: [number, number]) => 
     ['data', 'timeSeries', countryId, indicatorId, yearRange] as const,
-  comparisonData: (countryIds: string[], indicatorId: string, year?: number) =>
-    ['data', 'comparison', countryIds, indicatorId, year] as const,
   mapData: (indicatorId: string, year?: number) => ['data', 'map', indicatorId, year] as const,
-  chartTimeSeries: (countryIds: string[], indicatorId: string, yearRange?: [number, number]) =>
-    ['data', 'chartTimeSeries', countryIds, indicatorId, yearRange] as const,
-  barChartData: (indicatorId: string, year?: number, limit?: number, sortOrder?: 'asc' | 'desc') =>
-    ['data', 'barChart', indicatorId, year, limit, sortOrder] as const,
-  regionalData: (indicatorId: string, year?: number) => ['data', 'regional', indicatorId, year] as const,
 
   // Youth Index
   youthIndexRankings: (year?: number) => ['youthIndex', 'rankings', year] as const,
   youthIndexByCountry: (countryId: string, year?: number) => ['youthIndex', 'country', countryId, year] as const,
   youthIndexHistory: (countryId: string) => ['youthIndex', 'history', countryId] as const,
-  youthIndexTopPerformers: (limit?: number, year?: number) => ['youthIndex', 'top', limit, year] as const,
-  youthIndexMostImproved: (limit?: number, year?: number) => ['youthIndex', 'improved', limit, year] as const,
 
   // Platform
   platformStats: ['platform', 'stats'] as const,
@@ -176,55 +167,10 @@ export const useTimeSeries = (
   });
 };
 
-export const useComparisonData = (
-  countryIds: string[],
-  indicatorId: string,
-  year?: number
-) => {
-  return useQuery({
-    queryKey: queryKeys.comparisonData(countryIds, indicatorId, year),
-    queryFn: () => api.data.getComparisonData(countryIds, indicatorId, year),
-    enabled: countryIds.length > 0 && !!indicatorId,
-  });
-};
-
 export const useMapData = (indicatorId: string, year?: number) => {
   return useQuery({
     queryKey: queryKeys.mapData(indicatorId, year),
     queryFn: () => api.data.getMapData(indicatorId, year),
-    enabled: !!indicatorId,
-  });
-};
-
-export const useChartTimeSeries = (
-  countryIds: string[],
-  indicatorId: string,
-  yearRange?: [number, number]
-) => {
-  return useQuery({
-    queryKey: queryKeys.chartTimeSeries(countryIds, indicatorId, yearRange),
-    queryFn: () => api.data.getChartTimeSeries(countryIds, indicatorId, yearRange),
-    enabled: countryIds.length > 0 && !!indicatorId,
-  });
-};
-
-export const useBarChartData = (
-  indicatorId: string,
-  year?: number,
-  limit?: number,
-  sortOrder?: 'asc' | 'desc'
-) => {
-  return useQuery({
-    queryKey: queryKeys.barChartData(indicatorId, year, limit, sortOrder),
-    queryFn: () => api.data.getBarChartData(indicatorId, year, limit, sortOrder),
-    enabled: !!indicatorId,
-  });
-};
-
-export const useRegionalData = (indicatorId: string, year?: number) => {
-  return useQuery({
-    queryKey: queryKeys.regionalData(indicatorId, year),
-    queryFn: () => api.data.getRegionalData(indicatorId, year),
     enabled: !!indicatorId,
   });
 };
@@ -253,36 +199,6 @@ export const useYouthIndexHistory = (countryId: string) => {
     queryKey: queryKeys.youthIndexHistory(countryId),
     queryFn: () => api.youthIndex.getHistory(countryId),
     enabled: !!countryId,
-  });
-};
-
-export const useYouthIndexTopPerformers = (limit?: number, year?: number) => {
-  return useQuery({
-    queryKey: queryKeys.youthIndexTopPerformers(limit, year),
-    queryFn: () => api.youthIndex.getTopPerformers(limit, year),
-  });
-};
-
-export const useYouthIndexMostImproved = (limit?: number, year?: number) => {
-  return useQuery({
-    queryKey: queryKeys.youthIndexMostImproved(limit, year),
-    queryFn: () => api.youthIndex.getMostImproved(limit, year),
-  });
-};
-
-// ============================================
-// COMPARISON HOOKS
-// ============================================
-
-export const useCountryComparison = (
-  countryIds: string[],
-  indicatorIds: string[],
-  year?: number
-) => {
-  return useQuery({
-    queryKey: ['comparison', countryIds, indicatorIds, year],
-    queryFn: () => api.comparison.compareCountries(countryIds, indicatorIds, year),
-    enabled: countryIds.length > 0 && indicatorIds.length > 0,
   });
 };
 

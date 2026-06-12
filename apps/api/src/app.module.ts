@@ -27,6 +27,7 @@ import { DataUploadModule } from './modules/data-upload/data-upload.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { CountryReportsModule } from './modules/country-reports/country-reports.module';
 import { ContentModule } from './modules/content/content.module';
+import { InsightReportsModule } from './modules/insight-reports/insight-reports.module';
 import { MailModule } from './modules/mail/mail.module';
 import { CacheService } from './common/cache.service';
 
@@ -45,6 +46,15 @@ import { CacheService } from './common/cache.service';
         ttl: 60000,
         limit: 100,
       },
+      {
+        // Daily bucket — used to cap expensive AI/LLM endpoints per IP as
+        // defense-in-depth against cost-amplification. Routes opt in via
+        // @Throttle({ long: { ... } }); other routes are unaffected because
+        // they don't set a tighter long limit (this default is generous).
+        name: 'long',
+        ttl: 86_400_000,
+        limit: 10_000,
+      },
     ]),
 
     // Core
@@ -60,6 +70,7 @@ import { CacheService } from './common/cache.service';
     YouthIndexModule,
     CompareModule,
     InsightsModule,
+    InsightReportsModule,
     NlqModule,
     AiChatModule,
 

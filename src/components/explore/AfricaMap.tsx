@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
+import { api } from '@/lib/api-client';
 
 interface AfricaMapProps {
   onCountrySelect: (country: string) => void;
@@ -90,6 +92,24 @@ const AfricaMap: React.FC<AfricaMapProps> = ({ onCountrySelect, selectedCountry 
   const [hoveredRegion, setHoveredRegion] = useState<Region | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const containerRef = React.useRef<HTMLDivElement>(null);
+  // Per-geometry label centroid cache (lon/lat). Computed once per country the
+  // first time it renders, then reused — the summation over every polygon point
+  // is pure geometry and never changes, so it should not run on each re-render.
+  const centroidCache = React.useRef<Record<string, [number, number] | null>>({});
+
+  // Real continent snapshot numbers from /platform/stats (same source as
+  // Hero/QuickStats). Until the API resolves — or if it errors — every value
+  // renders "—"; we never show a fabricated count.
+  const { data: platformStats } = useQuery({
+    queryKey: ['platform-stats'],
+    queryFn: () => api.platform.stats().catch(() => null),
+    staleTime: 60_000,
+  });
+  const earliest = platformStats?.dataYearRange?.earliest;
+  const latest = platformStats?.dataYearRange?.latest;
+  const yearRange = earliest && latest ? `${earliest}–${latest}` : '—';
+  const fmtNum = (v: number | null | undefined): string =>
+    v == null ? '—' : v.toLocaleString();
 
   // Africa-only label set — only larger countries get labels at this scale
   const labelSet = useMemo(
@@ -104,18 +124,32 @@ const AfricaMap: React.FC<AfricaMapProps> = ({ onCountrySelect, selectedCountry 
     [],
   );
 
-  const handleMouseMove = (e: React.MouseEvent, name: string, region: Region) => {
+  // Hover identity (which country) is set once on enter/leave — NOT on every
+  // mousemove. Setting hovered state per-frame forced all 54 geographies +
+  // markers + label math to re-render on every pixel of cursor movement, which
+  // was the dominant source of scroll/hover jank.
+  const onCountryEnter = React.useCallback((e: React.MouseEvent, name: string, region: Region) => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top - 14 });
+    }
+    setHoveredCountry(name);
+    setHoveredRegion(region);
+  }, []);
+
+  const onLeave = React.useCallback(() => {
+    setHoveredCountry(null);
+    setHoveredRegion(null);
+  }, []);
+
+  // Tooltip follows the cursor via a container-level handler. tooltipPos is not
+  // read by the <Geographies> render path, so updating it only re-renders the
+  // lightweight tooltip element, never the map.
+  const handleContainerMove = React.useCallback((e: React.MouseEvent) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top - 14 });
-    setHoveredCountry(name);
-    setHoveredRegion(region);
-  };
-
-  const onLeave = () => {
-    setHoveredCountry(null);
-    setHoveredRegion(null);
-  };
+  }, []);
 
   const selectedRegion: Region | null = useMemo(() => {
     if (!selectedCountry || selectedCountry === 'All Countries') return null;
@@ -124,7 +158,11 @@ const AfricaMap: React.FC<AfricaMapProps> = ({ onCountrySelect, selectedCountry 
   }, [selectedCountry]);
 
   return (
-    <div ref={containerRef} className="relative w-full h-full min-h-[400px] rounded-xl overflow-hidden bg-[#04070d]">
+    <div
+      ref={containerRef}
+      onMouseMove={hoveredCountry ? handleContainerMove : undefined}
+      className="relative w-full h-full min-h-[400px] rounded-xl overflow-hidden bg-[#04070d]"
+    >
       {/* Layered backdrop: subtle radial glow + grid */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#04070d] via-[#0a1019] to-[#04070d]" />
       <div
@@ -186,17 +224,25 @@ const AfricaMap: React.FC<AfricaMapProps> = ({ onCountrySelect, selectedCountry 
                 let labelY = 0;
                 const showLabel = labelSet.has(name);
                 if (showLabel) {
-                  try {
-                    const coords = geo.geometry.type === 'MultiPolygon'
-                      ? (geo.geometry as any).coordinates[0][0]
-                      : (geo.geometry as any).coordinates[0];
-                    let sx = 0, sy = 0;
-                    for (const [lon, lat] of coords) { sx += lon; sy += lat; }
-                    const lon = sx / coords.length;
-                    const lat = sy / coords.length;
-                    const projected = projection([lon, lat]);
+                  // Resolve the lon/lat centroid once and cache it; only the
+                  // (cheap) projection runs on subsequent renders.
+                  let lonLat = centroidCache.current[geo.rsmKey];
+                  if (lonLat === undefined) {
+                    lonLat = null;
+                    try {
+                      const coords = geo.geometry.type === 'MultiPolygon'
+                        ? (geo.geometry as any).coordinates[0][0]
+                        : (geo.geometry as any).coordinates[0];
+                      let sx = 0, sy = 0;
+                      for (const [lon, lat] of coords) { sx += lon; sy += lat; }
+                      lonLat = [sx / coords.length, sy / coords.length];
+                    } catch { /* noop */ }
+                    centroidCache.current[geo.rsmKey] = lonLat;
+                  }
+                  if (lonLat) {
+                    const projected = projection(lonLat);
                     if (projected) { labelX = projected[0]; labelY = projected[1]; }
-                  } catch { /* noop */ }
+                  }
                 }
 
                 return (
@@ -204,7 +250,7 @@ const AfricaMap: React.FC<AfricaMapProps> = ({ onCountrySelect, selectedCountry 
                     <Geography
                       geography={geo}
                       onClick={() => onCountrySelect(name)}
-                      onMouseMove={(e: React.MouseEvent) => handleMouseMove(e, name, region)}
+                      onMouseEnter={(e: React.MouseEvent) => onCountryEnter(e, name, region)}
                       onMouseLeave={onLeave}
                       style={{
                         default: {
@@ -269,33 +315,44 @@ const AfricaMap: React.FC<AfricaMapProps> = ({ onCountrySelect, selectedCountry 
           }
         </Geographies>
 
-        {/* Capital-city pulse dots — one per AU member state */}
-        {Object.values(AFRICA_ISO).map(({ name, region, capital }) => {
-          const isSelected = selectedCountry === name;
-          const isHovered = hoveredCountry === name;
-          const color = REGION_HEX[region];
-          return (
-            <Marker key={`cap-${name}`} coordinates={capital}>
-              {/* Outer pulsing halo */}
-              <circle r={isSelected ? 7 : 4} fill={color} fillOpacity={0.15}>
-                <animate
-                  attributeName="r"
-                  values={isSelected ? '7;14;7' : '3;6;3'}
-                  dur={isSelected ? '1.6s' : '2.4s'}
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="fill-opacity"
-                  values="0.45;0;0.45"
-                  dur={isSelected ? '1.6s' : '2.4s'}
-                  repeatCount="indefinite"
-                />
-              </circle>
-              {/* Inner solid dot */}
-              <circle r={isSelected ? 3 : isHovered ? 2.4 : 1.6} fill={color} stroke="#0a0e14" strokeWidth={0.5} />
-            </Marker>
-          );
-        })}
+        {/* Capital-city pulse dots — one per AU member state.
+            Rendered AFTER the geographies, so they paint on top. They MUST NOT
+            capture pointer events or they swallow clicks/hovers meant for the
+            country shapes beneath them. The whole <g> is pointer-events: none.
+            Only the *selected* dot animates, to keep continuous SMIL repaints
+            (the main scroll-jank culprit) down from 54 to at most one. */}
+        <g style={{ pointerEvents: 'none' }}>
+          {Object.values(AFRICA_ISO).map(({ name, region, capital }) => {
+            const isSelected = selectedCountry === name;
+            const isHovered = hoveredCountry === name;
+            const color = REGION_HEX[region];
+            return (
+              <Marker key={`cap-${name}`} coordinates={capital}>
+                {/* Outer halo — only the selected country pulses */}
+                <circle r={isSelected ? 7 : 4} fill={color} fillOpacity={isSelected ? 0.15 : 0.12}>
+                  {isSelected && (
+                    <>
+                      <animate
+                        attributeName="r"
+                        values="7;14;7"
+                        dur="1.6s"
+                        repeatCount="indefinite"
+                      />
+                      <animate
+                        attributeName="fill-opacity"
+                        values="0.45;0;0.45"
+                        dur="1.6s"
+                        repeatCount="indefinite"
+                      />
+                    </>
+                  )}
+                </circle>
+                {/* Inner solid dot */}
+                <circle r={isSelected ? 3 : isHovered ? 2.4 : 1.6} fill={color} stroke="#0a0e14" strokeWidth={0.5} />
+              </Marker>
+            );
+          })}
+        </g>
       </ComposableMap>
 
       {/* Compass rose — top right */}
@@ -352,9 +409,10 @@ const AfricaMap: React.FC<AfricaMapProps> = ({ onCountrySelect, selectedCountry 
       <div className="absolute bottom-4 right-4 z-10 bg-black/50 backdrop-blur rounded-lg px-3 py-2.5 border border-white/[0.08] min-w-[140px]">
         <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1.5 font-semibold">Continent Snapshot</p>
         <div className="space-y-1 text-[11px]">
-          <div className="flex justify-between gap-3"><span className="text-gray-500">Total youth (15–35)</span><span className="text-emerald-400 font-semibold tabular-nums">~226M</span></div>
-          <div className="flex justify-between gap-3"><span className="text-gray-500">Indicators tracked</span><span className="text-white font-semibold tabular-nums">500+</span></div>
-          <div className="flex justify-between gap-3"><span className="text-gray-500">Median age</span><span className="text-white font-semibold tabular-nums">19.7 yrs</span></div>
+          <div className="flex justify-between gap-3"><span className="text-gray-500">Countries with data</span><span className="text-emerald-400 font-semibold tabular-nums">{fmtNum(platformStats?.countriesWithData)}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-gray-500">Indicators tracked</span><span className="text-white font-semibold tabular-nums">{fmtNum(platformStats?.totalIndicators)}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-gray-500">Data points</span><span className="text-white font-semibold tabular-nums">{fmtNum(platformStats?.totalDataPoints)}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-gray-500">Years covered</span><span className="text-white font-semibold tabular-nums">{yearRange}</span></div>
         </div>
       </div>
 

@@ -142,8 +142,11 @@ export class DocumentsService {
   }
 
   async getById(id: string) {
-    const doc = await this.prisma.document.findUnique({
-      where: { id },
+    // Public endpoint: only published documents are readable. Looking up by
+    // status as part of the unique-ish filter prevents IDOR on DRAFT/unpublished
+    // reports via cuid enumeration. Admins go through the admin module instead.
+    const doc = await this.prisma.document.findFirst({
+      where: { id, status: 'PUBLISHED' },
       include: { country: { select: { id: true, name: true, isoCode3: true } } },
     });
     if (!doc) throw new NotFoundException('Document not found');
@@ -191,7 +194,9 @@ export class DocumentsService {
   }
 
   async getDownloadStream(id: string) {
-    const doc = await this.prisma.document.findUnique({ where: { id } });
+    // Public download path — only stream published files. Prevents enumerating
+    // and pulling DRAFT/unpublished report files by cuid (IDOR).
+    const doc = await this.prisma.document.findFirst({ where: { id, status: 'PUBLISHED' } });
     if (!doc) throw new NotFoundException('Document not found');
     const obj = await this.r2.getObject(doc.storageKey);
     return { ...obj, document: doc };

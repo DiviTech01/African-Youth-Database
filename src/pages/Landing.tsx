@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Content } from '@/components/cms';
 import { NewsletterSignup } from '@/components/NewsletterSignup';
@@ -19,34 +20,49 @@ import {
   BookOpen
 } from 'lucide-react';
 
-function useCountUp(target: number, duration = 2000, suffix = '') {
+// Counts up to `target` once the element scrolls into view. `target` may be
+// null while the real value is still loading — in that case we render the
+// `placeholder` ("—") and never animate a fabricated number. The animation
+// is keyed on `target`, so when the real value arrives after the API resolves
+// the counter (re)animates to it.
+function useCountUp(target: number | null, duration = 2000, suffix = '', placeholder = '—') {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLParagraphElement>(null);
-  const hasAnimated = useRef(false);
+  const inView = useRef(false);
+  const animatedTo = useRef<number | null>(null);
 
   useEffect(() => {
+    const runAnimation = () => {
+      if (target == null || !inView.current || animatedTo.current === target) return;
+      animatedTo.current = target;
+      const start = performance.now();
+      const step = (now: number) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setCount(Math.floor(eased * target));
+        if (progress < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
+
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !hasAnimated.current) {
-          hasAnimated.current = true;
-          const start = performance.now();
-          const step = (now: number) => {
-            const elapsed = now - start;
-            const progress = Math.min(elapsed / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            setCount(Math.floor(eased * target));
-            if (progress < 1) requestAnimationFrame(step);
-          };
-          requestAnimationFrame(step);
+        if (entry.isIntersecting) {
+          inView.current = true;
+          runAnimation();
         }
       },
       { threshold: 0.3 }
     );
     if (ref.current) observer.observe(ref.current);
+    // Also try immediately in case we're already in view when target arrives.
+    runAnimation();
     return () => observer.disconnect();
   }, [target, duration]);
 
-  return { ref, display: `${count}${suffix}` };
+  const display = target == null ? placeholder : `${count}${suffix}`;
+  return { ref, display };
 }
 
 const fadeUp = {
@@ -66,7 +82,7 @@ const AnimatedStat = ({
   icon: Icon,
   delay,
 }: {
-  target: number;
+  target: number | null;
   suffix: string;
   labelKey: string;
   fallbackLabel: string;
@@ -129,32 +145,23 @@ const FEATURES = [
   },
 ];
 
-// Pull headline numbers from the same /platform/stats endpoint QuickStats uses.
-// Response shape: { totalCountries, totalIndicators, totalDataPoints,
-// dataYearRange: { earliest, latest } }. Earlier code read shorter key names
-// that don't exist on the server, so the numbers always fell through to the
-// hardcoded defaults — that's why /landing kept showing the same values.
+// Pull headline numbers from /platform/stats via the shared api-client, the
+// same source QuickStats and Hero use. Every value is `null` until the API
+// resolves (and stays null on error) so the counters render "—" rather than a
+// fabricated default — no more "500+", "226M", or "10 years" placeholders.
 function useLandingStats() {
-  const { data } = useQuery<{
-    totalCountries?: number;
-    totalIndicators?: number;
-    totalDataPoints?: number;
-    countriesWithData?: number;
-    dataYearRange?: { earliest?: number; latest?: number };
-  } | null>({
+  const { data } = useQuery({
     queryKey: ['landing-platform-stats'],
-    queryFn: () => fetch(`${import.meta.env.VITE_API_URL || '/api'}/platform/stats`)
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null),
+    queryFn: () => api.platform.stats().catch(() => null),
     staleTime: 60_000,
   });
 
-  const countries = data?.totalCountries ?? 54;
-  const indicators = data?.totalIndicators ?? 500;
-  const dataPoints = data?.totalDataPoints ?? 0;
+  const countries = data?.totalCountries ?? null;
+  const indicators = data?.totalIndicators ?? null;
+  const dataPoints = data?.totalDataPoints ?? null;
   const earliest = data?.dataYearRange?.earliest;
   const latest = data?.dataYearRange?.latest;
-  const yearsCovered = earliest && latest ? Math.max(1, latest - earliest + 1) : 10;
+  const yearsCovered = earliest && latest ? Math.max(1, latest - earliest + 1) : null;
 
   return { countries, indicators, dataPoints, yearsCovered };
 }
@@ -262,9 +269,12 @@ const Landing = () => {
         <div className="container px-4 md:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             <AnimatedStat target={stats.countries} suffix="" labelKey="landing.stats.countries.label" fallbackLabel="African Countries" icon={MapPin} delay={0} />
-            <AnimatedStat target={stats.indicators} suffix="+" labelKey="landing.stats.indicators.label" fallbackLabel="Data Indicators" icon={BarChart3} delay={0.1} />
-            <AnimatedStat target={stats.dataPoints > 0 ? Math.round(stats.dataPoints / 1000) : 226} suffix={stats.dataPoints > 0 ? 'K' : 'M'} labelKey="landing.stats.youth.label" fallbackLabel={stats.dataPoints > 0 ? 'Data Points' : 'Youth Covered'} icon={Users} delay={0.2} />
-            <AnimatedStat target={stats.yearsCovered} suffix="+" labelKey="landing.stats.years.label" fallbackLabel="Years of Data" icon={TrendingUp} delay={0.3} />
+            <AnimatedStat target={stats.indicators} suffix="" labelKey="landing.stats.indicators.label" fallbackLabel="Data Indicators" icon={BarChart3} delay={0.1} />
+            {/* Real data-point count (52K+). Replaces the old fabricated
+                "226M Youth Covered" tile — the platform stats endpoint has no
+                youth-population total, so we surface a number we actually own. */}
+            <AnimatedStat target={stats.dataPoints != null ? Math.round(stats.dataPoints / 1000) : null} suffix="K+" labelKey="landing.stats.data_points.label" fallbackLabel="Data Points" icon={Database} delay={0.2} />
+            <AnimatedStat target={stats.yearsCovered} suffix="" labelKey="landing.stats.years.label" fallbackLabel="Years of Data" icon={TrendingUp} delay={0.3} />
           </div>
         </div>
       </section>

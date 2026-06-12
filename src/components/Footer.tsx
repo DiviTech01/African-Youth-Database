@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Linkedin, Facebook, CheckCircle2, Loader2 } from 'lucide-react';
 import { Content } from '@/components/cms';
 import { useContentText } from '@/contexts/ContentContext';
+import { LEGAL_LINKS } from '@/config/legal';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -183,12 +184,30 @@ const Footer = () => {
             >
               <Content as="span" id="footer.legal.pacsda" fallback="A PACSDA Initiative" />
             </a>
-            <Link to="/privacy-policy" className="hover:text-foreground transition-colors">
+            <a
+              href={LEGAL_LINKS.privacy}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+            >
               <Content as="span" id="footer.legal.privacy" fallback="Privacy Policy" />
-            </Link>
-            <Link to="/terms-of-service" className="hover:text-foreground transition-colors">
+            </a>
+            <a
+              href={LEGAL_LINKS.terms}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+            >
               <Content as="span" id="footer.legal.terms" fallback="Terms of Service" />
-            </Link>
+            </a>
+            <a
+              href={LEGAL_LINKS.dataLicensing}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+            >
+              <Content as="span" id="footer.legal.data_licensing" fallback="Data Licensing" />
+            </a>
           </div>
         </div>
       </div>

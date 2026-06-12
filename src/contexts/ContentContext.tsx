@@ -75,8 +75,11 @@ export function useContent(key: string): PublishedContent | undefined {
  * Return the localized text for `key`.
  *
  * Resolution order:
- *  - non-English: i18n translation for the CMS key (if any) → English CMS
- *    override → `fallback`.
+ *  - admin published an override (version > 0): CMS override wins, even on
+ *    non-English, because the catalog translation is for the OLD copy and
+ *    would silently shadow the edit.
+ *  - non-English with no override: i18n translation for the CMS key (if any)
+ *    → English CMS default → `fallback`.
  *  - English: CMS override → `fallback`.
  *
  * Use this for cases where a plain string is required (props on 3rd-party
@@ -85,8 +88,10 @@ export function useContent(key: string): PublishedContent | undefined {
 export function useContentText(key: string, fallback: string): string {
   const { language } = useLanguage();
   const entry = useContent(key);
+  const raw = entry?.content;
+  const hasAdminOverride = !!entry && entry.version > 0 && !!raw?.trim();
+  if (hasAdminOverride) return raw!;
   const translated = cmsTranslation(language, key);
   if (translated) return translated;
-  const raw = entry?.content;
   return raw && raw.trim() ? raw : fallback;
 }

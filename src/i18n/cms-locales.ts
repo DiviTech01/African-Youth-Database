@@ -52,6 +52,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'footer.copyright': '© 2026 Observatoire de la Jeunesse Africaine. Tous droits réservés.',
     'footer.legal.privacy': 'Politique de confidentialité',
     'footer.legal.terms': "Conditions d'utilisation",
+    'footer.legal.data_licensing': 'Licence des données',
     // Cookie consent
     'cookie_consent.message': "Nous utilisons des cookies pour améliorer votre expérience. En continuant à utiliser ce site, vous acceptez notre utilisation des cookies.",
     'cookie_consent.manage': 'Gérer les préférences',
@@ -421,6 +422,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'footer.copyright': '© 2026 مرصد الشباب الأفريقي. جميع الحقوق محفوظة.',
     'footer.legal.privacy': 'سياسة الخصوصية',
     'footer.legal.terms': 'شروط الخدمة',
+    'footer.legal.data_licensing': 'ترخيص البيانات',
     // Cookie consent
     'cookie_consent.message': 'نستخدم ملفات تعريف الارتباط لتحسين تجربتك. بمتابعة استخدام هذا الموقع فإنك توافق على استخدامنا لملفات تعريف الارتباط.',
     'cookie_consent.manage': 'إدارة التفضيلات',
@@ -790,6 +792,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'footer.copyright': '© 2026 Observatório da Juventude Africana. Todos os direitos reservados.',
     'footer.legal.privacy': 'Política de Privacidade',
     'footer.legal.terms': 'Termos de Serviço',
+    'footer.legal.data_licensing': 'Licenciamento de Dados',
     // Cookie consent
     'cookie_consent.message': 'Utilizamos cookies para melhorar a sua experiência. Ao continuar a usar este site, concorda com a nossa utilização de cookies.',
     'cookie_consent.manage': 'Gerir preferências',
@@ -1159,6 +1162,7 @@ export const CMS_TRANSLATIONS: Record<NonEnglish, Record<string, string>> = {
     'footer.copyright': '© 2026 Kituo cha Uangalizi cha Vijana wa Afrika. Haki zote zimehifadhiwa.',
     'footer.legal.privacy': 'Sera ya Faragha',
     'footer.legal.terms': 'Masharti ya Huduma',
+    'footer.legal.data_licensing': 'Leseni ya Data',
     // Cookie consent
     'cookie_consent.message': 'Tunatumia vidakuzi kuboresha matumizi yako. Kwa kuendelea kutumia tovuti hii unakubali matumizi yetu ya vidakuzi.',
     'cookie_consent.manage': 'Dhibiti mapendeleo',

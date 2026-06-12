@@ -8,7 +8,8 @@ import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('insights')
 @Controller('insights')
-@Throttle({ medium: { ttl: 60000, limit: 20 } })
+// AI-generated narratives are Anthropic-backed (real cost): 20/min and 500/day per IP.
+@Throttle({ medium: { ttl: 60000, limit: 20 }, long: { ttl: 86_400_000, limit: 500 } })
 export class InsightsController {
   constructor(
     private readonly insightsService: InsightsService,

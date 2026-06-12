@@ -7,9 +7,30 @@ import { ApiTags, ApiOperation, ApiConsumes, ApiBearerAuth } from '@nestjs/swagg
 import { Request, Response } from 'express';
 import { DataUploadService } from './data-upload.service';
 import { UploadConfigDto } from './data-upload.dto';
+import { BadRequestException } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+
+// Only CSV / Excel uploads are expected here. The parser would fail on other
+// types anyway, but rejecting up front avoids buffering junk and gives a clear
+// error. Some browsers send octet-stream for .xlsx, so we also allow that when
+// the extension matches.
+const SPREADSHEET_MIMES = new Set([
+  'text/csv',
+  'application/csv',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/octet-stream',
+]);
+const spreadsheetUpload = {
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req: any, file: Express.Multer.File, cb: (err: Error | null, accept: boolean) => void) => {
+    const extOk = /\.(csv|xls|xlsx)$/i.test(file.originalname || '');
+    if (SPREADSHEET_MIMES.has(file.mimetype) && extOk) return cb(null, true);
+    cb(new BadRequestException(`Unsupported file type: ${file.mimetype} (${file.originalname}). Upload a CSV or XLSX.`), false);
+  },
+};
 
 @ApiTags('data-upload')
 @ApiBearerAuth()
@@ -20,7 +41,7 @@ export class DataUploadController {
 
   @Post('file')
   @Roles('CONTRIBUTOR', 'ADMIN')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', spreadsheetUpload))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload a CSV or XLSX file for import preview' })
   async uploadFile(
@@ -38,7 +59,7 @@ export class DataUploadController {
 
   @Post('ayims-template')
   @Roles('CONTRIBUTOR', 'ADMIN')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', spreadsheetUpload))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary:
@@ -88,7 +109,7 @@ export class DataUploadController {
 
   @Post('policies-database')
   @Roles('CONTRIBUTOR', 'ADMIN')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', spreadsheetUpload))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary:

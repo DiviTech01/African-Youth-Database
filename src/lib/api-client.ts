@@ -167,14 +167,6 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-export interface NLQResponse {
-  query: string;
-  answer: string;
-  chartData?: Record<string, unknown>;
-  chartType?: string;
-  followUpQuestions: string[];
-}
-
 // ─── API Error ───────────────────────────────────────────────────────────────
 
 export class ApiError extends Error {
@@ -264,10 +256,6 @@ export const api = {
       request<Record<string, IndicatorValue[]>>(`/data/comparison${toQuery({ countryIds: countryIds.join(','), indicatorIds: indicatorIds.join(',') })}`),
     regionalAverages: (indicatorId: string) =>
       request<Array<{ region: string; value: number }>>(`/data/regional-averages${toQuery({ indicatorId })}`),
-    heatmap: (params: { indicatorIds: string[]; countryIds: string[] }) =>
-      request<Array<{ countryId: string; indicatorId: string; value: number }>>(`/data/heatmap${toQuery({ ...params, indicatorIds: params.indicatorIds.join(','), countryIds: params.countryIds.join(',') })}`),
-    scatter: (params: { xIndicatorId: string; yIndicatorId: string; year?: number }) =>
-      request<Array<{ countryId: string; x: number; y: number }>>(`/data/scatter${toQuery(params)}`),
   },
 
   // Youth Index
@@ -294,15 +282,6 @@ export const api = {
       request<InsightCard[]>('/insights/anomalies'),
     correlations: () =>
       request<InsightCard[]>('/insights/correlations'),
-  },
-
-  // Natural Language Query
-  query: {
-    ask: (question: string, lang?: string) =>
-      request<NLQResponse>('/query/natural-language', {
-        method: 'POST',
-        body: JSON.stringify({ question, lang: lang || 'en' }),
-      }),
   },
 
   // Experts
@@ -339,56 +318,154 @@ export const api = {
       request<Blob>(`/export/excel${toQuery(filters)}`),
   },
 
-  // Auth
-  auth: {
-    signIn: (email: string, password: string) =>
-      request<{
-        tokens: { accessToken: string; refreshToken: string };
-        user: { id: string; email: string; name: string | null; role: string; organization: string | null };
-      }>('/auth/signin', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }),
-    signUp: (data: { name: string; email: string; password: string }) =>
-      request<{
-        tokens: { accessToken: string; refreshToken: string };
-        user: { id: string; email: string; name: string | null; role: string; organization: string | null };
-      }>('/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-    profile: () =>
-      request<{ id: string; email: string; name: string | null; role: string; organization: string | null }>('/auth/profile'),
-    updateProfile: (data: { name?: string; organization?: string }) =>
-      request<{ id: string; email: string; name: string | null; role: string; organization: string | null }>('/auth/profile', {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      }),
-    forgotPassword: (email: string) =>
-      request<{ message: string }>('/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify({ email }),
-      }),
-    resetPassword: (email: string, code: string, newPassword: string) =>
-      request<{ message: string }>('/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify({ email, code, newPassword }),
-      }),
-    contact: (data: { name: string; email: string; organization?: string; inquiryType: string; subject: string; message: string }) =>
-      request<{ message: string }>('/auth/contact', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
+  // Compare (real backend — replaces the old fabricated comparison page)
+  compare: {
+    countries: (body: { countryIds: string[]; indicatorIds?: string[]; year?: number; includeRegionalAverage?: boolean }) =>
+      request<CompareCountriesResult>('/compare/countries', { method: 'POST', body: JSON.stringify(body) }),
+    themes: (countryId: string, year?: number) =>
+      request<CompareThemesResult>(`/compare/themes${toQuery({ countryId, year })}`),
+    regions: (indicatorId: string, year?: number) =>
+      request<CompareRegionsResult>(`/compare/regions${toQuery({ indicatorId, year })}`),
   },
 
-  // Reports
-  reports: {
-    list: () =>
-      request<Array<{ id: string; title: string; type: string; countryId?: string; createdAt: string }>>('/reports'),
-    download: (id: string) =>
-      request<Blob>(`/reports/${id}/pdf`),
+  // Platform stats (real headline numbers for landing/map counters)
+  platform: {
+    stats: () => request<PlatformStats>('/platform/stats'),
+    health: () => request<{ status: string; database: string; uptime: number }>('/platform/health'),
   },
+
+  // Documents (real uploaded reports — replaces localStorage Reports store)
+  documents: {
+    list: (params?: { countryId?: string; type?: string; limit?: number }) =>
+      request<DocumentSummary[]>(`/documents${toQuery(params)}`),
+    get: (id: string) => request<DocumentSummary>(`/documents/${id}`),
+    downloadUrl: (id: string, disposition: 'attachment' | 'inline' = 'attachment') =>
+      `${API_BASE_URL}/documents/${id}/download${toQuery({ disposition })}`,
+  },
+
+  // Generated insight reports (Claude-authored, cached 24h, downloadable, sendable)
+  insightReports: {
+    get: (id: string) => request<InsightReportDetail>(`/insight-reports/${id}`),
+    generate: (body: { scope: 'continental' | 'country' | 'theme'; countryId?: string; themeId?: string; year?: number }) =>
+      request<InsightReportDetail>('/insight-reports/generate', { method: 'POST', body: JSON.stringify(body) }),
+    downloadUrl: (id: string) => `${API_BASE_URL}/insight-reports/${id}/download`,
+    // Admin only — emails the report to an audience via the newsletter pipeline.
+    send: (id: string, body: { audience: 'subscribers' | 'users' | 'all' }) =>
+      request<{ campaignId: string; audience: string; recipientCount: number }>(`/insight-reports/${id}/send`, { method: 'POST', body: JSON.stringify(body) }),
+  },
+
 };
+
+// ─── Additional response types for the real-data wiring ──────────────────────
+
+export interface PlatformStats {
+  totalCountries: number;
+  totalIndicators: number;
+  totalDataPoints: number;
+  totalThemes: number;
+  dataYearRange: { earliest: number | null; latest: number | null };
+  countriesWithData: number;
+  lastUpdated: string;
+  dataCompleteness: number;
+  topDataCountries: { name: string; dataPoints: number }[];
+}
+
+export interface CompareCountryIndicator {
+  indicatorId: string;
+  indicatorName: string;
+  slug: string;
+  unit: string;
+  value: number | null;
+  regionalAverage: number | null;
+  continentalAverage: number | null;
+  rank: number | null;
+  percentile: number | null;
+}
+
+export interface CompareCountryResult {
+  countryId: string;
+  countryName: string;
+  isoCode3: string;
+  flagEmoji: string;
+  region: string;
+  youthIndexRank: number | null;
+  youthIndexScore: number | null;
+  indicators: CompareCountryIndicator[];
+}
+
+export interface CompareCountriesResult {
+  year: number;
+  countries: CompareCountryResult[];
+  meta: { indicatorsRequested: number; indicatorsWithData: number; dataCompleteness: number };
+}
+
+export interface CompareThemeResult {
+  themeId: string;
+  themeName: string;
+  slug: string;
+  averageScore: number | null;
+  indicatorCount: number;
+  dataAvailability: number;
+  rank: number | null;
+  bestIndicator: { name: string; value: number; rank: number } | null;
+  worstIndicator: { name: string; value: number; rank: number } | null;
+}
+
+export interface CompareThemesResult {
+  country: { name: string; isoCode3: string; flagEmoji: string; region: string };
+  year: number;
+  themes: CompareThemeResult[];
+}
+
+export interface CompareRegionsResult {
+  indicator: { name: string; unit: string };
+  year: number;
+  regions: {
+    region: string;
+    average: number | null;
+    median: number | null;
+    min: { country: string; value: number } | null;
+    max: { country: string; value: number } | null;
+    countryCount: number;
+    dataAvailability: number;
+  }[];
+  continentalAverage: number | null;
+}
+
+export interface DocumentSummary {
+  id: string;
+  type: string;
+  title: string;
+  description: string | null;
+  country: { id: string; name: string; isoCode3: string } | null;
+  countryId: string | null;
+  originalFilename: string;
+  mimeType: string | null;
+  fileSize: number | null;
+  source: string | null;
+  edition: string | null;
+  year: number | null;
+  status: string;
+  createdAt: string;
+  downloadUrl: string;
+}
+
+export interface InsightReportSummary {
+  id: string;
+  scope: 'continental' | 'country' | 'theme';
+  title: string;
+  summary: string | null;
+  countryId: string | null;
+  themeId: string | null;
+  year: number | null;
+  createdAt: string;
+  lastSentAt: string | null;
+}
+
+export interface InsightReportDetail extends InsightReportSummary {
+  html: string;
+  sections: { heading: string; body: string }[];
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

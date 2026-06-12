@@ -48,6 +48,7 @@ export const chromeEntries: CmsRegistryEntry[] = [
   { key: 'footer.copyright', page: FOOTER, section: 'bottom', contentType: 'TEXT', defaultContent: '© 2026 African Youth Observatory. All rights reserved.' },
   { key: 'footer.legal.privacy', page: FOOTER, section: 'bottom', contentType: 'TEXT', defaultContent: 'Privacy Policy' },
   { key: 'footer.legal.terms', page: FOOTER, section: 'bottom', contentType: 'TEXT', defaultContent: 'Terms of Service' },
+  { key: 'footer.legal.data_licensing', page: FOOTER, section: 'bottom', contentType: 'TEXT', defaultContent: 'Data Licensing' },
 
   // Cookie consent banner
   { key: 'cookie_consent.message', page: COOKIE, section: 'banner', contentType: 'RICH_TEXT', defaultContent: 'We use cookies to improve your experience. By continuing to use this site you agree to our use of cookies.' },

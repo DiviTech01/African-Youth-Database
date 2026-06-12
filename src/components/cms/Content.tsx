@@ -53,8 +53,13 @@ export const Content: React.FC<ContentProps> = ({
   );
 
   // For non-English, the i18n translation for this CMS key wins over the
-  // English CMS override / fallback so the whole page actually localizes.
-  const translated = cmsTranslation(language, id);
+  // English CMS override / fallback so the whole page actually localizes —
+  // UNLESS the admin has explicitly published an override (version > 0). In
+  // that case the static catalog text is stale (it translates the OLD copy),
+  // so we fall through to the admin's new English content.
+  const hasAdminOverride =
+    !!entry && entry.version > 0 && !!(entry.content?.trim() || entry.imageUrl);
+  const translated = hasAdminOverride ? undefined : cmsTranslation(language, id);
 
   const sanitizedHtml = useMemo(() => {
     if (!entry || entry.contentType !== 'RICH_TEXT') return '';

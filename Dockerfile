@@ -1,5 +1,10 @@
 FROM node:20-alpine
 
+# Default to production. main.ts only enables localhost CORS origins and the
+# JWKS TLS-validation bypass when NODE_ENV !== 'production', so this must be set.
+# A platform (Render/Railway) can still override it via injected env.
+ENV NODE_ENV=production
+
 WORKDIR /app
 
 # Copy everything

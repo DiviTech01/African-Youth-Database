@@ -107,6 +107,15 @@ export class DocumentsController {
       return;
     }
 
+    // Defense-in-depth against stored XSS: any HTML we serve inline that is NOT
+    // a curated PKPB report gets sandboxed so embedded scripts can't run in our
+    // origin. PKPB reports are admin-curated and need their injected animation
+    // scripts, so they're exempt (handled in the branch above).
+    if (mode === 'inline' && isHtml) {
+      res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src data: https:; style-src 'unsafe-inline'");
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    }
+
     res.setHeader('Content-Type', contentType);
     if (contentLength) res.setHeader('Content-Length', contentLength);
     body.pipe(res);
