@@ -7,11 +7,12 @@ import { Content } from '@/components/cms';
 
 const STORAGE_KEY = 'ayd_app_download_dismissed';
 
-// The Android APK URL is injected at build time. Until the APK is built and
-// hosted (e.g. on R2/Cloudflare or a GitHub Release), this is empty and the
-// popup stays hidden — so we never show a broken download link. Set
-// VITE_APK_URL in the deploy env once the APK exists.
-const APK_URL = (import.meta.env.VITE_APK_URL as string | undefined)?.trim() || '';
+// The Android APK lives as a GitHub Release asset (a permanent public URL).
+// VITE_APK_URL can override this in the deploy env if the APK is later rehosted
+// (e.g. on R2). If neither resolves, the popup stays hidden — no broken link.
+const APK_URL =
+  (import.meta.env.VITE_APK_URL as string | undefined)?.trim() ||
+  'https://github.com/DiviTech01/ayo-mobile/releases/download/v1.0.0/AfYO-Android.apk';
 
 function isAndroid(): boolean {
   if (typeof navigator === 'undefined') return false;
