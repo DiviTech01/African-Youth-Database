@@ -348,7 +348,11 @@ export const api = {
     get: (id: string) => request<InsightReportDetail>(`/insight-reports/${id}`),
     generate: (body: { scope: 'continental' | 'country' | 'theme'; countryId?: string; themeId?: string; year?: number }) =>
       request<InsightReportDetail>('/insight-reports/generate', { method: 'POST', body: JSON.stringify(body) }),
-    downloadUrl: (id: string) => `${API_BASE_URL}/insight-reports/${id}/download`,
+    // Multi-format export. `pdf`/`pptx` are rendered server-side and are slow —
+    // call sites should show a pending state. `html` stays the default so older
+    // single-argument call sites keep working.
+    downloadUrl: (id: string, format: InsightReportFormat = 'html') =>
+      `${API_BASE_URL}/insight-reports/${id}/download${toQuery({ format })}`,
     // Admin only — emails the report to an audience via the newsletter pipeline.
     send: (id: string, body: { audience: 'subscribers' | 'users' | 'all' }) =>
       request<{ campaignId: string; audience: string; recipientCount: number }>(`/insight-reports/${id}/send`, { method: 'POST', body: JSON.stringify(body) }),
@@ -449,6 +453,9 @@ export interface DocumentSummary {
   createdAt: string;
   downloadUrl: string;
 }
+
+/** File formats the insight-report download endpoint can render. */
+export type InsightReportFormat = 'html' | 'pdf' | 'pptx' | 'xlsx';
 
 export interface InsightReportSummary {
   id: string;

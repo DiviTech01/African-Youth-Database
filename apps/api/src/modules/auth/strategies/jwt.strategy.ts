@@ -166,10 +166,32 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload) {
     const existing = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, name: true, role: true },
+      select: { id: true, email: true, name: true, role: true, lastLogin: true },
     });
 
-    if (existing) return existing;
+    if (existing) {
+      // Nothing else in the codebase ever wrote lastLogin, so every
+      // "active users" figure derived from it was permanently zero. This is
+      // the only place that sees an authenticated identity on every request,
+      // so it's where the stamp belongs.
+      //
+      // Throttled to once an hour per user: this runs on the hot path for
+      // every authenticated web and mobile request, and an unconditional write
+      // would add a round trip to all of them. Fire-and-forget — a failed
+      // timestamp must never fail the request.
+      const stale =
+        !existing.lastLogin ||
+        Date.now() - existing.lastLogin.getTime() > 60 * 60 * 1000;
+      if (stale) {
+        this.prisma.user
+          .update({ where: { id: existing.id }, data: { lastLogin: new Date() } })
+          .catch((err: Error) =>
+            this.logger.warn(`could not stamp lastLogin for ${existing.id}: ${err.message}`),
+          );
+      }
+      const { lastLogin: _lastLogin, ...user } = existing;
+      return user;
+    }
 
     // First-time login — provision and send welcome email
     const name = payload.user_metadata?.name ?? undefined;
@@ -179,6 +201,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         email: payload.email,
         name,
         role: 'REGISTERED',
+        lastLogin: new Date(),
       },
       select: { id: true, email: true, name: true, role: true },
     });

@@ -158,6 +158,37 @@ export class R2Service {
     return { key: objectPath, url: this.publicBase ? `${this.publicBase}/${objectPath}` : null };
   }
 
+  /**
+   * Write a raw buffer to a caller-chosen key.
+   *
+   * uploadImage/uploadFile mint their own random, date-prefixed key from a
+   * Multer file. That is wrong for content that has to be addressable again
+   * later from an id alone (generated insight reports are re-read by report id
+   * after a process restart, when no key was persisted anywhere).
+   */
+  async putBuffer(
+    key: string,
+    body: Buffer,
+    contentType = 'application/octet-stream',
+    options: { cacheControl?: string } = {},
+  ): Promise<{ key: string; url: string | null }> {
+    if (!this.client) {
+      throw new InternalServerErrorException('R2 is not configured on this server');
+    }
+
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+        CacheControl: options.cacheControl ?? 'private, no-cache',
+      }),
+    );
+
+    return { key, url: this.publicBase ? `${this.publicBase}/${key}` : null };
+  }
+
   async getObject(key: string): Promise<{ body: Readable; contentType: string; contentLength: number | null }> {
     // Local-disk fallback path: read from {workspace}/uploads/<rest-of-key>.
     if (key.startsWith(LOCAL_PREFIX)) {

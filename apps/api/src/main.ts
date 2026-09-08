@@ -126,6 +126,7 @@ World Bank, ILO, UNESCO, national statistics bureaus`,
     .addTag('auth', 'Authentication and user management')
     .addTag('admin', 'Platform administration')
     .addTag('platform', 'Platform stats and health checks')
+    .addTag('ops', 'Operator status and headline numbers (service-token auth, read-only)')
     .build();
 
   if (enableSwagger) {

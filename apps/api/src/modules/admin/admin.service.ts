@@ -494,14 +494,14 @@ export class AdminService {
     // Check AI availability
     let aiAvailable = false;
     let aiModel = 'none';
-    try {
-      const { AiService } = await import('../insights/ai.service');
-      // Can't instantiate here, just check env
-      aiAvailable = !!process.env.ANTHROPIC_API_KEY;
-      aiModel = process.env.AI_MODEL || 'claude-sonnet-4-20250514';
-    } catch {
-      // AI module not available
-    }
+    let aiReportModel = 'none';
+    // Model routing is per-surface (chat vs report), so the dashboard reports
+    // both. This used to hardcode 'claude-sonnet-4-20250514' as its fallback and
+    // read the legacy AI_MODEL var, which meant it confidently displayed a
+    // model the account could not reach while every AI call silently degraded.
+    aiAvailable = !!process.env.ANTHROPIC_API_KEY;
+    aiModel = process.env.AI_MODEL_CHAT?.trim() || 'claude-sonnet-5';
+    aiReportModel = process.env.AI_MODEL_REPORT?.trim() || 'claude-opus-5';
 
     // Database row counts
     const [countries, indicators, indicatorValues, users, themes, experts, policies, dashboards] =
@@ -541,6 +541,7 @@ export class AdminService {
       ai: {
         available: aiAvailable,
         model: aiModel,
+        reportModel: aiReportModel,
       },
     };
   }

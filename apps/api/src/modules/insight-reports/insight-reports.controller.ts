@@ -1,11 +1,12 @@
 import {
-  Controller, Post, Get, Body, Param, Query, Res, UseGuards,
+  Controller, Post, Get, Body, Param, Query, Res, UseGuards, BadRequestException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
 import { IsIn, IsOptional, IsString, IsInt } from 'class-validator';
 import { InsightReportsService, ReportScope } from './insight-reports.service';
+import { ReportFormat } from './report-document.model';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -24,6 +25,8 @@ class GenerateReportDto {
   @IsOptional() @IsInt()
   year?: number;
 }
+
+const REPORT_FORMATS: ReportFormat[] = ['html', 'pdf', 'pptx', 'xlsx'];
 
 class SendReportDto {
   @IsIn(['subscribers', 'users', 'all'])
@@ -48,20 +51,36 @@ export class InsightReportsController {
 
   @Get(':id')
   @Public()
-  @ApiOperation({ summary: 'Fetch a previously generated report (cached, 24h).' })
+  @ApiOperation({ summary: 'Fetch a previously generated report, including its structured document.' })
   get(@Param('id') id: string) {
     return this.service.getById(id);
   }
 
   @Get(':id/download')
   @Public()
-  @ApiQuery({ name: 'format', required: false, enum: ['html'] })
-  @ApiOperation({ summary: 'Download a generated report as a standalone, printable HTML document.' })
-  async download(@Param('id') id: string, @Res() res: Response) {
-    const { filename, html } = await this.service.renderDownloadHtml(id);
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  @ApiQuery({ name: 'format', required: false, enum: REPORT_FORMATS })
+  @ApiOperation({
+    summary: 'Download a generated report as HTML, PDF, PowerPoint or Excel. Defaults to HTML.',
+  })
+  async download(
+    @Param('id') id: string,
+    @Res() res: Response,
+    @Query('format') format?: string,
+  ) {
+    // An unknown ?format is a client mistake, not a reason to silently hand back
+    // HTML under a .pptx filename.
+    const requested = (format ?? 'html').toLowerCase();
+    if (!REPORT_FORMATS.includes(requested as ReportFormat)) {
+      throw new BadRequestException(
+        `Unsupported format "${format}". Use one of: ${REPORT_FORMATS.join(', ')}.`,
+      );
+    }
+
+    const { filename, mime, body } = await this.service.render(id, requested as ReportFormat);
+    res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(html);
+    res.setHeader('Content-Length', String(body.length));
+    res.end(body);
   }
 
   @Post(':id/send')

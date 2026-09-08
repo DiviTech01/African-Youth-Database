@@ -29,6 +29,7 @@ import { CountryReportsModule } from './modules/country-reports/country-reports.
 import { ContentModule } from './modules/content/content.module';
 import { InsightReportsModule } from './modules/insight-reports/insight-reports.module';
 import { MailModule } from './modules/mail/mail.module';
+import { OpsModule } from './modules/ops/ops.module';
 import { CacheService } from './common/cache.service';
 
 @Global()
@@ -97,6 +98,7 @@ import { CacheService } from './common/cache.service';
     // Platform
     PlatformModule,
     NewsletterModule,
+    OpsModule,
   ],
   providers: [
     CacheService,

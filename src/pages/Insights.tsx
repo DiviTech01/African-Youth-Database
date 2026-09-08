@@ -10,13 +10,18 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Sparkles, TrendingUp, TrendingDown, AlertTriangle, BarChart3,
   Globe, Activity, FileText, Download, Send, Loader2, Link2,
+  ChevronDown, Code2, Presentation, FileSpreadsheet,
 } from 'lucide-react';
 import CountryFlag from '@/components/CountryFlag';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { api, type InsightReportDetail } from '@/lib/api-client';
+import { authHeader } from '@/lib/supabase-token';
+import { api, type InsightReportDetail, type InsightReportFormat } from '@/lib/api-client';
 
 // ── Real-data types (runtime shapes from the insights backend) ─────────────────
 
@@ -65,6 +70,22 @@ interface CountryInsight {
 
 type ReportScope = 'continental' | 'country' | 'theme';
 
+// Download formats offered on a generated report. `labelKey` resolves through
+// the shared i18n catalog; `slow` marks the server-rendered (Claude-authored)
+// formats so the UI can warn that they are not instant.
+const REPORT_FORMATS: {
+  value: InsightReportFormat;
+  labelKey: string;
+  extension: string;
+  icon: React.ReactNode;
+  slow?: boolean;
+}[] = [
+  { value: 'html', labelKey: 'insights.formatHtml', extension: 'html', icon: <Code2 className="h-4 w-4" /> },
+  { value: 'pdf',  labelKey: 'insights.formatPdf',  extension: 'pdf',  icon: <FileText className="h-4 w-4" />, slow: true },
+  { value: 'pptx', labelKey: 'insights.formatPptx', extension: 'pptx', icon: <Presentation className="h-4 w-4" />, slow: true },
+  { value: 'xlsx', labelKey: 'insights.formatXlsx', extension: 'xlsx', icon: <FileSpreadsheet className="h-4 w-4" /> },
+];
+
 // ── Styling maps ───────────────────────────────────────────────────────────────
 
 const SEVERITY_STYLES: Record<CountryInsightSeverity, { bg: string; text: string; border: string }> = {
@@ -83,6 +104,17 @@ function fmtDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function slugify(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'insight-report';
+}
+
+/** Pull the server-supplied filename out of a Content-Disposition header. */
+function filenameFromDisposition(header: string | null): string | null {
+  if (!header) return null;
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(header);
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 // ── Empty state ────────────────────────────────────────────────────────────────
@@ -191,9 +223,40 @@ const Insights: React.FC = () => {
     }));
   }, [report]);
 
-  const handleDownload = () => {
-    if (!report) return;
-    window.open(api.insightReports.downloadUrl(report.id), '_blank', 'noopener,noreferrer');
+  // ── Multi-format download ───────────────────────────────────────────
+  // PDF and PowerPoint are rendered server-side (Claude writes, then the API
+  // renders), so this streams the file rather than opening a tab: that lets us
+  // hold a pending state and surface a real error instead of a dead tab.
+  const [downloadingFormat, setDownloadingFormat] = useState<InsightReportFormat | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const handleDownload = async (format: InsightReportFormat) => {
+    if (!report || downloadingFormat) return;
+    const option = REPORT_FORMATS.find((f) => f.value === format);
+    setDownloadingFormat(format);
+    setDownloadError(null);
+    try {
+      const res = await fetch(api.insightReports.downloadUrl(report.id, format), {
+        headers: authHeader(),
+      });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download =
+        filenameFromDisposition(res.headers.get('Content-Disposition')) ??
+        `${slugify(report.title)}.${option?.extension ?? format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      setDownloadError(t('insights.downloadFailed'));
+      toast.error(t('insights.downloadFailed'));
+    } finally {
+      setDownloadingFormat(null);
+    }
   };
 
   return (
@@ -323,9 +386,46 @@ const Insights: React.FC = () => {
                         <p className="text-xs text-gray-400 mt-1">Generated {fmtDate(report.createdAt)}</p>
                       )}
                     </div>
-                    <Button variant="outline" size="sm" className="gap-2" onClick={handleDownload}>
-                      <Download className="h-4 w-4" /> Download
-                    </Button>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                            disabled={!!downloadingFormat}
+                          >
+                            {downloadingFormat
+                              ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('insights.downloadPreparing')}</>
+                              : <><Download className="h-4 w-4" /> {t('common.download')}</>}
+                            <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {REPORT_FORMATS.map((option) => (
+                            <DropdownMenuItem
+                              key={option.value}
+                              onClick={() => handleDownload(option.value)}
+                              className="cursor-pointer"
+                            >
+                              {option.icon}
+                              <span className="ml-2">{t(option.labelKey)}</span>
+                              {option.slow && (
+                                <span className="ml-2 text-[10px] text-gray-400">{t('insights.downloadSlowTag')}</span>
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      {downloadingFormat && (
+                        <span className="text-[11px] text-gray-400 max-w-[240px] text-right leading-snug">
+                          {t('insights.downloadInProgress')}
+                        </span>
+                      )}
+                      {downloadError && (
+                        <span className="text-[11px] text-red-400">{downloadError}</span>
+                      )}
+                    </div>
                   </div>
 
                   {report.summary && (
