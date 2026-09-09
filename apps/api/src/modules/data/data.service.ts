@@ -151,6 +151,55 @@ export class DataService {
       usedFallback = values.length > 0;
     }
 
+    // Gender fallback. Six of the seven most-requested youth indicators DO have
+    // TOTAL rows, but only ~21 of them, covering 3 countries — against ~1,000
+    // rows across 54 countries per gender. So the strict TOTAL filter above does
+    // not usually return nothing; for 51 of 54 countries it returns nothing, and
+    // for the other 3 it returns a thin slice. Either way the platform looked
+    // like it had almost no data on youth unemployment, literacy and voter
+    // turnout while the real data sat unused under MALE/FEMALE.
+    //
+    // When TOTAL yields nothing for this country and the caller did not pin a
+    // gender, return the male and female series side by side and say so via
+    // genderUsed. We deliberately do NOT synthesise a combined figure: these are
+    // rates, and the unweighted mean of two rates is not the population rate.
+    // Each row already carries its own `gender`, so the UI can plot two series.
+    let usedGenderFallback = false;
+    if (values.length === 0 && !gender) {
+      const splitWhere: Record<string, unknown> = {
+        countryId,
+        indicatorId,
+        gender: { in: ['MALE', 'FEMALE'] },
+        ageGroup: ageGroup ?? DEFAULT_AGE_GROUP,
+      };
+      if (Object.keys(yearWhere).length) splitWhere.year = yearWhere;
+
+      values = await this.prisma.indicatorValue.findMany({
+        where: splitWhere,
+        orderBy: [{ year: 'asc' }, { gender: 'asc' }],
+        select: { year: true, value: true, gender: true, ageGroup: true },
+      });
+
+      // Retry without the age band too, mirroring the lenient pass above, so an
+      // indicator that is both gender-split and not age-banded still resolves.
+      if (values.length === 0 && !ageGroup) {
+        const lenientSplit: Record<string, unknown> = {
+          countryId,
+          indicatorId,
+          gender: { in: ['MALE', 'FEMALE'] },
+          _skipAgeGroupDefault: true,
+        };
+        if (Object.keys(yearWhere).length) lenientSplit.year = yearWhere;
+        values = await this.prisma.indicatorValue.findMany({
+          where: lenientSplit as any,
+          orderBy: [{ year: 'asc' }, { gender: 'asc' }],
+          select: { year: true, value: true, gender: true, ageGroup: true },
+        });
+        if (values.length > 0) usedFallback = true;
+      }
+      usedGenderFallback = values.length > 0;
+    }
+
     const indicator = await this.prisma.indicator.findUnique({
       where: { id: indicatorId },
       select: { id: true, name: true, unit: true, source: true },
@@ -162,6 +211,10 @@ export class DataService {
       // country-level indicators differently (e.g., "national value" rather
       // than "youth 15-35"). Default unchanged for back-compat.
       ageGroupUsed: usedFallback ? 'all' : (ageGroup ?? DEFAULT_AGE_GROUP),
+      // 'split' means no combined figure exists for this country/indicator and
+      // the payload carries separate male and female series. The UI MUST label
+      // them; presenting one gender as the headline rate would misstate it.
+      genderUsed: usedGenderFallback ? 'split' : (gender || 'TOTAL'),
       data: values.map((v) => ({
         year: v.year,
         value: v.value,

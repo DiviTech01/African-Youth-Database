@@ -64,6 +64,10 @@ function useChartData(
     return countriesQ.data.find((c) => c.name === country) ?? null;
   }, [countriesQ.data, country]);
 
+  // Which half of a gender-split indicator is on screen. Only meaningful when
+  // the API reports genderUsed === 'split'.
+  const [splitGender, setSplitGender] = useState<'MALE' | 'FEMALE'>('MALE');
+
   const timeseriesQ = useQuery({
     queryKey: ['data', 'timeseries', countryRow?.id, indicatorRow?.id, yearRange[0], yearRange[1]],
     queryFn: () => api.data.getTimeSeries(countryRow!.id, indicatorRow!.id, yearRange),
@@ -87,7 +91,19 @@ function useChartData(
   });
 
   const rawRows = timeseriesQ.data?.data ?? [];
-  const data = rawRows.map((d: any) => ({ year: String(d.year), value: d.value }));
+
+  // Some indicators publish no combined figure — only male and female series.
+  // The API signals that with genderUsed === 'split' and returns BOTH series,
+  // which means two rows per year. Plotting them as one series would draw a
+  // zigzag, and averaging them would be wrong outright (these are rates, and
+  // the unweighted mean of two rates is not the population rate). So we show
+  // one gender at a time and label it loudly.
+  const genderUsed: string | null = (timeseriesQ.data as any)?.genderUsed ?? null;
+  const isGenderSplit = genderUsed === 'split';
+  const chartRows = isGenderSplit
+    ? rawRows.filter((r: any) => r.gender === splitGender)
+    : rawRows;
+  const data = chartRows.map((d: any) => ({ year: String(d.year), value: d.value }));
 
   // Derive the age-band label from the rows the API actually returned.
   // The AYIMS template stores each indicator under a fixed band (15-35 for
@@ -118,6 +134,9 @@ function useChartData(
     indicatorRow: timeseriesQ.data?.indicator ?? indicatorRow,
     countryRow,
     ageBandLabel,
+    isGenderSplit,
+    splitGender,
+    setSplitGender,
     availableYears,
     isProbingYears: allYearsQ.isLoading,
     // Flag the "you picked an indicator but no country" state so the chart
@@ -221,6 +240,9 @@ const DataChart = ({
     indicatorRow,
     needsCountry,
     ageBandLabel,
+    isGenderSplit,
+    splitGender,
+    setSplitGender,
     availableYears,
     isProbingYears,
   } = useChartData(country, theme, indicator, yearRange);
@@ -413,6 +435,27 @@ const DataChart = ({
             {ageBandLabel && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">
                 {ageBandLabel}
+              </span>
+            )}
+            {isGenderSplit && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-[10px] font-semibold text-amber-300 uppercase tracking-wider">
+                {/* Never present one gender as the headline rate — say which
+                    one is on screen, and make switching obvious. */}
+                No combined figure
+                <button
+                  type="button"
+                  onClick={() => setSplitGender('MALE')}
+                  className={`ml-1 px-1.5 rounded ${splitGender === 'MALE' ? 'bg-amber-400/30 text-amber-100' : 'hover:bg-amber-400/15'}`}
+                >
+                  Male
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSplitGender('FEMALE')}
+                  className={`px-1.5 rounded ${splitGender === 'FEMALE' ? 'bg-amber-400/30 text-amber-100' : 'hover:bg-amber-400/15'}`}
+                >
+                  Female
+                </button>
               </span>
             )}
           </div>
