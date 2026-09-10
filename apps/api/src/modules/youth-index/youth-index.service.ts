@@ -23,8 +23,31 @@ function asDims(json: unknown): DimensionMap {
 
 function ensureAll(dims: DimensionMap): DimensionMap {
   const out: DimensionMap = {};
+  // Only the seven known theme keys are emitted, so the '_meta' provenance key
+  // stored alongside them never leaks into a dimensions payload.
   for (const k of THEME_KEYS) out[k] = typeof dims[k] === 'number' ? dims[k] : 50;
   return out;
+}
+
+/**
+ * Provenance for each dimension, written by the calculator into the same JSON
+ * column under '_meta'.
+ *
+ * Callers need this to tell a measured score from an imputed one. Without it a
+ * dimension built from a single indicator, one filled with a regional average,
+ * and the flat 50 used when a region has no data at all are indistinguishable
+ * -- which is how Peace & Security came to read 50.0 for all 54 countries with
+ * nothing anywhere saying so.
+ *
+ * Returns null for scores computed before provenance was recorded; treat null
+ * as "unknown provenance", never as "measured".
+ */
+function coverageOf(json: unknown): Record<string, unknown> | null {
+  if (!json || typeof json !== 'object') return null;
+  const meta = (json as Record<string, unknown>)._meta;
+  if (!meta || typeof meta !== 'object') return null;
+  const cov = (meta as Record<string, unknown>).coverage;
+  return cov && typeof cov === 'object' ? (cov as Record<string, unknown>) : null;
 }
 
 @Injectable()
@@ -64,6 +87,7 @@ export class YouthIndexService {
     const data = rankings.map((r) => {
       const dims = ensureAll(asDims(r.dimensionScores));
       return {
+        dimensionCoverage: coverageOf(r.dimensionScores),
         rank: r.rank,
         countryId: r.countryId,
         countryName: r.country.name,
@@ -124,6 +148,7 @@ export class YouthIndexService {
         year: s.year,
         overallScore: s.overallScore,
         dimensions: ensureAll(asDims(s.dimensionScores)),
+        dimensionCoverage: coverageOf(s.dimensionScores),
         rank: s.rank,
         previousRank: s.previousRank,
         rankChange: s.rankChange,
@@ -161,6 +186,7 @@ export class YouthIndexService {
       region: formatRegion(r.country.region),
       overallScore: r.overallScore,
       dimensions: ensureAll(asDims(r.dimensionScores)),
+      dimensionCoverage: coverageOf(r.dimensionScores),
       tier: formatTier(r.tier),
     }));
   }

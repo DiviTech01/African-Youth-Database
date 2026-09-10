@@ -17,7 +17,13 @@ function formatDimensions(dimensionScores: unknown): string {
     ? (dimensionScores as Record<string, number>)
     : {};
   return Object.keys(SHORT_THEME_LABELS)
-    .map((slug) => `${SHORT_THEME_LABELS[slug]}: ${(typeof d[slug] === 'number' ? d[slug] : 50).toFixed(1)}`)
+    // Never substitute a number here. This string is what the model sees, and a
+    // silent 50 reads to it as a measurement -- it will then write confident
+    // prose about a dimension that has no data behind it.
+    .map((slug) => {
+      const v = d[slug];
+      return `${SHORT_THEME_LABELS[slug]}: ${typeof v === 'number' ? v.toFixed(1) : 'no data'}`;
+    })
     .join(' | ');
 }
 

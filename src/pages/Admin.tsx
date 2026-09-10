@@ -45,11 +45,14 @@ const roleBadgeVariant: Record<UserRole, string> = {
   PUBLIC: 'bg-gray-600/20 text-gray-500 border-gray-600/30',
 };
 
-const mockStats = [
-  { label: 'Total Users', value: '—', icon: Users, change: '' },
-  { label: 'Countries with Data', value: '54', icon: Globe, change: 'Active' },
-  { label: 'Data Points', value: '—', icon: Database, change: '' },
-  { label: 'Active Sessions', value: 'Live', icon: Activity, change: '' },
+// Shown only while the real platform stats are still loading. Every value is a
+// placeholder -- nothing here asserts a count. The previous version hardcoded
+// '54' countries and a literal 'Live' session figure, which are claims, not
+// placeholders, and would keep reading as real if the stats request failed.
+const loadingStats = [
+  { label: 'Total Countries', value: '—', icon: Globe, change: '' },
+  { label: 'Indicators', value: '—', icon: Database, change: '' },
+  { label: 'Data Points', value: '—', icon: Activity, change: '' },
 ];
 
 const Admin = () => {
@@ -110,7 +113,7 @@ const Admin = () => {
     { label: 'Data Points', value: platformStats.indicatorValues ? `${(platformStats.indicatorValues / 1000).toFixed(1)}K` : '—', icon: Activity, change: 'Live' },
     { label: 'Registered Users', value: String(userRows?.length ?? '—'), icon: Users, change: '' },
   ] : [
-    ...mockStats.slice(0, 3),
+    ...loadingStats,
     { label: 'Registered Users', value: String(userRows?.length ?? '—'), icon: Users, change: '' },
   ];
 

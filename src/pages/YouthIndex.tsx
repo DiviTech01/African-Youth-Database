@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
 import AutoScroll from 'embla-carousel-auto-scroll';
@@ -21,67 +21,10 @@ import { useExportGuard } from '@/hooks/useExportGuard';
 import { GuestInviteModal } from '@/components/GuestInviteModal';
 import { Content } from '@/components/cms';
 
-const mockIndexData = [
-  { rank: 1, country: "Mauritius", region: "East Africa", score: 78.4, change: 2, education: 85.2, employment: 71.3, health: 82.1, civic: 74.8 },
-  { rank: 2, country: "Seychelles", region: "East Africa", score: 76.2, change: 0, education: 82.4, employment: 69.8, health: 79.5, civic: 73.2 },
-  { rank: 3, country: "Tunisia", region: "North Africa", score: 72.8, change: 1, education: 79.1, employment: 62.4, health: 78.3, civic: 71.5 },
-  { rank: 4, country: "Botswana", region: "Southern Africa", score: 71.5, change: -1, education: 76.8, employment: 65.7, health: 74.2, civic: 69.4 },
-  { rank: 5, country: "South Africa", region: "Southern Africa", score: 70.2, change: 2, education: 74.5, employment: 58.9, health: 76.8, civic: 70.6 },
-  { rank: 6, country: "Cape Verde", region: "West Africa", score: 69.8, change: 0, education: 75.2, employment: 61.4, health: 73.5, civic: 69.1 },
-  { rank: 7, country: "Rwanda", region: "East Africa", score: 68.4, change: 3, education: 72.1, employment: 64.8, health: 69.7, civic: 67.0 },
-  { rank: 8, country: "Morocco", region: "North Africa", score: 67.9, change: -1, education: 73.4, employment: 59.2, health: 71.8, civic: 67.2 },
-  { rank: 9, country: "Ghana", region: "West Africa", score: 66.5, change: 1, education: 71.8, employment: 58.4, health: 68.9, civic: 66.8 },
-  { rank: 10, country: "Kenya", region: "East Africa", score: 65.8, change: 0, education: 70.5, employment: 56.7, health: 69.2, civic: 66.9 },
-  { rank: 11, country: "Egypt", region: "North Africa", score: 64.2, change: -2, education: 71.2, employment: 52.8, health: 68.4, civic: 64.5 },
-  { rank: 12, country: "Namibia", region: "Southern Africa", score: 63.9, change: 1, education: 69.8, employment: 54.3, health: 67.5, civic: 64.0 },
-  { rank: 13, country: "Senegal", region: "West Africa", score: 62.1, change: 2, education: 65.4, employment: 57.2, health: 64.8, civic: 61.0 },
-  { rank: 14, country: "Tanzania", region: "East Africa", score: 61.5, change: 0, education: 64.8, employment: 58.1, health: 63.2, civic: 59.8 },
-  { rank: 15, country: "Ethiopia", region: "East Africa", score: 58.4, change: 1, education: 59.2, employment: 54.6, health: 61.8, civic: 58.0 },
-  { rank: 16, country: "Algeria", region: "North Africa", score: 57.8, change: -1, education: 63.5, employment: 49.2, health: 62.7, civic: 55.8 },
-  { rank: 17, country: "Côte d'Ivoire", region: "West Africa", score: 56.9, change: 2, education: 59.8, employment: 55.4, health: 57.6, civic: 54.8 },
-  { rank: 18, country: "Gabon", region: "Central Africa", score: 55.7, change: 0, education: 58.9, employment: 51.2, health: 60.4, civic: 52.3 },
-  { rank: 19, country: "Eswatini", region: "Southern Africa", score: 54.6, change: 1, education: 57.2, employment: 48.8, health: 58.1, civic: 54.3 },
-  { rank: 20, country: "Lesotho", region: "Southern Africa", score: 53.8, change: -1, education: 56.4, employment: 47.5, health: 57.8, civic: 53.5 },
-  { rank: 21, country: "Uganda", region: "East Africa", score: 52.9, change: 1, education: 54.7, employment: 51.3, health: 55.2, civic: 50.4 },
-  { rank: 22, country: "Zambia", region: "East Africa", score: 52.1, change: 0, education: 53.8, employment: 50.6, health: 54.9, civic: 49.1 },
-  { rank: 23, country: "Cameroon", region: "Central Africa", score: 51.4, change: -2, education: 54.2, employment: 47.8, health: 53.6, civic: 50.0 },
-  { rank: 24, country: "Zimbabwe", region: "East Africa", score: 50.7, change: 2, education: 56.3, employment: 44.2, health: 52.4, civic: 50.0 },
-  { rank: 25, country: "Benin", region: "West Africa", score: 50.2, change: 0, education: 50.4, employment: 50.8, health: 51.6, civic: 47.9 },
-  { rank: 26, country: "São Tomé and Príncipe", region: "Central Africa", score: 49.6, change: 1, education: 53.1, employment: 45.7, health: 52.0, civic: 47.6 },
-  { rank: 27, country: "Togo", region: "West Africa", score: 49.1, change: -1, education: 50.8, employment: 48.4, health: 49.7, civic: 47.4 },
-  { rank: 28, country: "Madagascar", region: "East Africa", score: 48.5, change: 0, education: 49.6, employment: 47.9, health: 50.3, civic: 46.1 },
-  { rank: 29, country: "Mozambique", region: "East Africa", score: 47.8, change: 1, education: 47.2, employment: 49.1, health: 48.6, civic: 46.3 },
-  { rank: 30, country: "Comoros", region: "East Africa", score: 47.2, change: 0, education: 49.8, employment: 44.6, health: 48.3, civic: 46.1 },
-  { rank: 31, country: "Malawi", region: "East Africa", score: 46.5, change: -1, education: 47.4, employment: 45.9, health: 47.8, civic: 44.9 },
-  { rank: 32, country: "Djibouti", region: "East Africa", score: 45.9, change: 1, education: 46.7, employment: 44.5, health: 47.2, civic: 45.2 },
-  { rank: 33, country: "Republic of the Congo", region: "Central Africa", score: 45.3, change: 0, education: 47.1, employment: 43.2, health: 46.8, civic: 44.1 },
-  { rank: 34, country: "Equatorial Guinea", region: "Central Africa", score: 44.7, change: -2, education: 46.9, employment: 42.4, health: 45.7, civic: 43.8 },
-  { rank: 35, country: "Mauritania", region: "West Africa", score: 44.0, change: 1, education: 43.6, employment: 45.1, health: 44.8, civic: 42.5 },
-  { rank: 36, country: "Liberia", region: "West Africa", score: 43.4, change: 2, education: 44.1, employment: 43.6, health: 43.9, civic: 41.9 },
-  { rank: 37, country: "Sierra Leone", region: "West Africa", score: 42.7, change: 0, education: 43.5, employment: 42.0, health: 43.6, civic: 41.7 },
-  { rank: 38, country: "Gambia", region: "West Africa", score: 42.1, change: -1, education: 42.8, employment: 41.4, health: 42.9, civic: 41.3 },
-  { rank: 39, country: "Angola", region: "Central Africa", score: 41.5, change: 1, education: 42.0, employment: 41.2, health: 42.4, civic: 40.4 },
-  { rank: 40, country: "Nigeria", region: "West Africa", score: 41.0, change: 0, education: 43.2, employment: 38.7, health: 42.6, civic: 39.7 },
-  { rank: 41, country: "Burundi", region: "East Africa", score: 40.3, change: -1, education: 41.4, employment: 39.5, health: 40.8, civic: 39.6 },
-  { rank: 42, country: "Burkina Faso", region: "West Africa", score: 39.7, change: 1, education: 39.8, employment: 40.4, health: 39.6, civic: 38.9 },
-  { rank: 43, country: "Niger", region: "West Africa", score: 39.0, change: 0, education: 38.4, employment: 40.6, health: 39.1, civic: 37.8 },
-  { rank: 44, country: "Mali", region: "West Africa", score: 38.4, change: -2, education: 39.2, employment: 37.6, health: 38.7, civic: 37.9 },
-  { rank: 45, country: "Eritrea", region: "East Africa", score: 37.8, change: 1, education: 38.5, employment: 36.7, health: 38.2, civic: 37.6 },
-  { rank: 46, country: "Guinea", region: "West Africa", score: 37.1, change: 0, education: 37.6, employment: 36.4, health: 37.5, civic: 36.6 },
-  { rank: 47, country: "Sudan", region: "North Africa", score: 36.4, change: -2, education: 38.2, employment: 33.5, health: 37.1, civic: 36.4 },
-  { rank: 48, country: "Libya", region: "North Africa", score: 35.7, change: -1, education: 37.6, employment: 32.4, health: 36.4, civic: 35.7 },
-  { rank: 49, country: "Democratic Republic of the Congo", region: "Central Africa", score: 35.0, change: 0, education: 35.6, employment: 33.8, health: 35.2, civic: 35.1 },
-  { rank: 50, country: "Guinea-Bissau", region: "West Africa", score: 34.3, change: 1, education: 34.8, employment: 33.4, health: 34.6, civic: 34.2 },
-  { rank: 51, country: "Chad", region: "Central Africa", score: 33.5, change: -1, education: 33.9, employment: 32.8, health: 33.7, civic: 33.4 },
-  { rank: 52, country: "Central African Republic", region: "Central Africa", score: 32.7, change: 0, education: 33.2, employment: 32.0, health: 33.0, civic: 32.4 },
-  { rank: 53, country: "Somalia", region: "East Africa", score: 31.8, change: -1, education: 32.4, employment: 30.8, health: 32.1, civic: 31.6 },
-  { rank: 54, country: "South Sudan", region: "East Africa", score: 30.5, change: 0, education: 31.2, employment: 29.4, health: 30.8, civic: 30.3 },
-];
-
-const REGION_BY_COUNTRY: Record<string, string> = Object.fromEntries(
-  mockIndexData.map((c) => [c.country, c.region]),
-);
-
+// The 54-row invented ranking table that used to sit here is gone. Its scores
+// and ranks were never rendered -- only a country->region lookup was derived
+// from it -- but it read exactly like live data to anyone opening this file,
+// and the API already returns `region` on every ranking row.
 // The seven AYO dimensions — match the slugs in apps/api Theme table.
 const dimensions = [
   { key: "demography",       label: "Demography",      weight: "20%", color: "text-blue-400" },
@@ -101,6 +44,48 @@ const getTierBadge = (score: number) => {
   return <Badge className="ml-2 bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30 hover:bg-red-500/25">Low</Badge>;
 };
 
+// Shared radar + per-dimension grid. Rendered both in the hover preview popover
+// and in the click-to-keep dialog so the two stay perfectly in sync.
+const BreakdownRadar = ({ c, height = 320 }: { c: any; height?: number }) => (
+  <>
+    <ResponsiveContainer width="100%" height={height}>
+      <RadarChart
+        data={[
+          { dimension: 'Demography',      value: c.demography,       fullMark: 100 },
+          { dimension: 'Education',       value: c.education,        fullMark: 100 },
+          { dimension: 'Employment',      value: c.employment,       fullMark: 100 },
+          { dimension: 'Health',          value: c.health,           fullMark: 100 },
+          { dimension: 'Entrepreneurship', value: c.entrepreneurship, fullMark: 100 },
+          { dimension: 'Peace',           value: c.peaceSecurity,    fullMark: 100 },
+          { dimension: 'Justice',         value: c.accessToJustice,  fullMark: 100 },
+        ]}
+        cx="50%" cy="50%" outerRadius="75%"
+      >
+        <PolarGrid strokeDasharray="3 3" />
+        <PolarAngleAxis dataKey="dimension" tick={{ fontSize: height > 260 ? 13 : 11 }} />
+        <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
+        <Radar
+          name={c.country}
+          dataKey="value"
+          stroke="hsl(var(--chart-1))"
+          fill="hsl(var(--chart-1))"
+          fillOpacity={0.3}
+        />
+      </RadarChart>
+    </ResponsiveContainer>
+    <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mt-2 w-full text-center">
+      {dimensions.map((dim) => (
+        <div key={dim.key}>
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider">{dim.label}</p>
+          <p className={`font-bold text-sm ${dim.color}`}>
+            {Math.round((c as any)[dim.key] ?? 0)}
+          </p>
+        </div>
+      ))}
+    </div>
+  </>
+);
+
 const YouthIndex = () => {
   const { t } = useLanguage();
   const { preferences } = useUserPreferences();
@@ -113,6 +98,32 @@ const YouthIndex = () => {
   const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const goToProfile = (countryName: string) => navigate(`/dashboard/profile/${slugify(countryName)}`);
   const [breakdownCountry, setBreakdownCountry] = useState<any>(null);
+  // Transient hover preview of the dimension breakdown. Shown when the cursor
+  // is over a score / dimension cell; clicking pins it open in the dialog.
+  const [hovered, setHovered] = useState<{ item: any; top: number; left: number } | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showBreakdown = (item: any, el: HTMLElement) => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    const r = el.getBoundingClientRect();
+    const width = 340;
+    const estHeight = 320;
+    const left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8);
+    let top = r.bottom + 8;
+    if (top + estHeight > window.innerHeight) top = Math.max(8, r.top - estHeight - 8);
+    setHovered({ item, top, left });
+  };
+  const scheduleHide = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setHovered(null), 140);
+  };
+  // Spread onto every score / dimension cell so hovering anywhere on the right
+  // side of a row reveals that country's breakdown.
+  const hoverProps = (item: any) => ({
+    onMouseEnter: (e: React.MouseEvent<HTMLTableCellElement>) => showBreakdown(item, e.currentTarget),
+    onMouseLeave: scheduleHide,
+  });
+
   const { toast } = useToast();
   const { guard, inviteOpen, setInviteOpen, inviteAction } = useExportGuard();
 
@@ -157,7 +168,7 @@ const YouthIndex = () => {
         return {
           rank: r.rank,
           country,
-          region: r.region || REGION_BY_COUNTRY[country] || 'Other',
+          region: r.region || 'Other',
           score: r.indexScore ?? r.overallScore,
           change: r.rankChange || 0,
           demography:       d['youth-demography-participation'] ?? r.civicScore     ?? 0,
@@ -383,43 +394,7 @@ const YouthIndex = () => {
                 </DialogTitle>
               </DialogHeader>
               <div className="flex flex-col items-center">
-                <ResponsiveContainer width="100%" height={320}>
-                  <RadarChart
-                    data={breakdownCountry ? [
-                      { dimension: 'Demography',      value: breakdownCountry.demography,       fullMark: 100 },
-                      { dimension: 'Education',       value: breakdownCountry.education,        fullMark: 100 },
-                      { dimension: 'Employment',      value: breakdownCountry.employment,       fullMark: 100 },
-                      { dimension: 'Health',          value: breakdownCountry.health,           fullMark: 100 },
-                      { dimension: 'Entrepreneurship', value: breakdownCountry.entrepreneurship, fullMark: 100 },
-                      { dimension: 'Peace',           value: breakdownCountry.peaceSecurity,    fullMark: 100 },
-                      { dimension: 'Justice',         value: breakdownCountry.accessToJustice,  fullMark: 100 },
-                    ] : []}
-                    cx="50%" cy="50%" outerRadius="75%"
-                  >
-                    <PolarGrid strokeDasharray="3 3" />
-                    <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 13 }} />
-                    <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 11 }} />
-                    <Radar
-                      name={breakdownCountry?.country}
-                      dataKey="value"
-                      stroke="hsl(var(--chart-1))"
-                      fill="hsl(var(--chart-1))"
-                      fillOpacity={0.3}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
-                {breakdownCountry && (
-                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-3 mt-2 w-full text-center">
-                    {dimensions.map((dim) => (
-                      <div key={dim.key}>
-                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">{dim.label}</p>
-                        <p className={`font-bold text-sm ${dim.color}`}>
-                          {Math.round((breakdownCountry as any)[dim.key] ?? 0)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {breakdownCountry && <BreakdownRadar c={breakdownCountry} height={320} />}
                 {breakdownCountry && (
                   <button
                     type="button"
@@ -438,6 +413,29 @@ const YouthIndex = () => {
             </DialogContent>
           </Dialog>
 
+          {/* Hover preview of the dimension breakdown — appears when the cursor
+              is over a score / dimension cell. Click it (or the cell) to pin it
+              open in the dialog above. */}
+          {hovered && (
+            <div
+              className="fixed z-50 w-[340px] rounded-2xl border border-gray-800 bg-black/95 p-4 shadow-2xl cursor-pointer"
+              style={{ top: hovered.top, left: hovered.left }}
+              onMouseEnter={() => { if (hideTimer.current) clearTimeout(hideTimer.current); }}
+              onMouseLeave={scheduleHide}
+              onClick={() => { setBreakdownCountry(hovered.item); setHovered(null); }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <CountryFlag country={hovered.item.country} size="sm" />
+                <span className="font-semibold text-sm">{hovered.item.country} — Dimension Breakdown</span>
+                {getTierBadge(hovered.item.score)}
+              </div>
+              <BreakdownRadar c={hovered.item} height={200} />
+              <p className="mt-2 text-center text-[11px] text-[#FFC83D]">
+                Click to keep open & see {hovered.item.country}'s youth profile →
+              </p>
+            </div>
+          )}
+
           {/* Full Rankings Table */}
           <Card className="bg-white/[0.03] border-gray-800 rounded-2xl">
             <CardHeader>
@@ -450,8 +448,8 @@ const YouthIndex = () => {
                       ({filteredData.length} of {indexData.length})
                     </span>
                   </CardTitle>
-                  <p className="text-xs text-gray-500 mt-1.5">
-                    Click a country name to open its <span className="text-[#D4A017]">youth profile overview</span> · click a score or dimension to see the breakdown
+                  <p className="text-sm text-white mt-1.5">
+                    Click a country name to open its <span className="text-[#FFC83D] font-semibold">youth profile overview</span> · <span className="text-white">hover or click a score / dimension to see the breakdown</span>
                   </p>
                 </div>
 
@@ -564,13 +562,14 @@ const YouthIndex = () => {
                         <td
                           className={`py-3 px-2 font-bold cursor-pointer ${getScoreColor(item.score)}`}
                           onClick={() => setBreakdownCountry(item)}
+                          {...hoverProps(item)}
                         >
                           <span className="inline-flex items-center">
                             {item.score}
                             {getTierBadge(item.score)}
                           </span>
                         </td>
-                        <td className="py-3 px-2 cursor-pointer" onClick={() => setBreakdownCountry(item)}>
+                        <td className="py-3 px-2 cursor-pointer" onClick={() => setBreakdownCountry(item)} {...hoverProps(item)}>
                           <span className="flex items-center gap-1">
                             {getTrendIcon(item.change)}
                             <span className={`text-xs ${item.change > 0 ? 'text-pan-green-500' : item.change < 0 ? 'text-pan-red-500' : 'text-gray-500'}`}>
@@ -578,13 +577,13 @@ const YouthIndex = () => {
                             </span>
                           </span>
                         </td>
-                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.demography ?? 0)}</td>
-                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.education ?? 0)}</td>
-                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.employment ?? 0)}</td>
-                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.health ?? 0)}</td>
-                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.entrepreneurship ?? 0)}</td>
-                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.peaceSecurity ?? 0)}</td>
-                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)}>{Math.round(item.accessToJustice ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)} {...hoverProps(item)}>{Math.round(item.demography ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)} {...hoverProps(item)}>{Math.round(item.education ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)} {...hoverProps(item)}>{Math.round(item.employment ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)} {...hoverProps(item)}>{Math.round(item.health ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)} {...hoverProps(item)}>{Math.round(item.entrepreneurship ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)} {...hoverProps(item)}>{Math.round(item.peaceSecurity ?? 0)}</td>
+                        <td className="py-3 px-2 text-center text-sm cursor-pointer" onClick={() => setBreakdownCountry(item)} {...hoverProps(item)}>{Math.round(item.accessToJustice ?? 0)}</td>
                       </tr>
                       );
                     })}

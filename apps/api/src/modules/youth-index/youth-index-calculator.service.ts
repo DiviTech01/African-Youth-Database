@@ -27,10 +27,33 @@ import { CacheService } from '../../common/cache.service';
 import { DEFAULT_AGE_GROUP } from '../../shared/constants';
 import { SUB_WEIGHTS, ALL_INDEX_INDICATOR_SLUGS } from './youth-index-weights';
 
+/**
+ * How a dimension score came to exist.
+ *
+ * 'measured'         - computed from indicators that actually have values
+ * 'regional-average' - the country had no data, filled from its region's mean
+ * 'default'          - neither the country nor its region had any data; 50
+ *
+ * Every dimension previously arrived as a bare number, so a country scored on
+ * one indicator was indistinguishable from one scored on twelve, and a
+ * wholly-invented 50 was indistinguishable from a measurement. Peace & Security
+ * is 'default' for all 54 countries; nothing surfaced that.
+ */
+type DimensionSource = 'measured' | 'regional-average' | 'default';
+
+interface DimensionCoverage {
+  source: DimensionSource;
+  /** Indicators that contributed a value. */
+  indicators: number;
+  /** Indicators the methodology defines for this dimension. */
+  of: number;
+}
+
 interface CountryDimensionScores {
   countryId: string;
   region: string;
   dimensions: Record<string, number | null>;
+  coverage: Record<string, DimensionCoverage>;
   overallScore: number;
 }
 
@@ -104,10 +127,12 @@ export class YouthIndexCalculatorService {
     const countryScores: CountryDimensionScores[] = [];
     for (const country of countries) {
       const dimensions: Record<string, number | null> = {};
+      const coverage: Record<string, DimensionCoverage> = {};
       for (const themeSlug of Object.keys(SUB_WEIGHTS)) {
         const subs = SUB_WEIGHTS[themeSlug];
         let weightedSum = 0;
         let totalWeight = 0;
+        let contributing = 0;
         for (const sub of subs) {
           const indId = slugToId.get(sub.slug);
           if (!indId) continue;
@@ -129,12 +154,17 @@ export class YouthIndexCalculatorService {
           else normalized = FLOOR + ((mm.max - raw) / range) * SCALE;
           weightedSum += normalized * sub.weight;
           totalWeight += sub.weight;
+          contributing += 1;
         }
         dimensions[themeSlug] = totalWeight > 0
           ? Math.round((weightedSum / totalWeight) * 100) / 100
           : null;
+        // Weights are redistributed across whichever indicators had data, with
+        // no floor -- so one indicator can carry an entire 20% dimension.
+        // Record what it was actually built from.
+        coverage[themeSlug] = { source: 'measured', indicators: contributing, of: subs.length };
       }
-      countryScores.push({ countryId: country.id, region: country.region, dimensions, overallScore: 0 });
+      countryScores.push({ countryId: country.id, region: country.region, dimensions, coverage, overallScore: 0 });
     }
 
     // Regional averages to fill missing theme scores
@@ -158,9 +188,17 @@ export class YouthIndexCalculatorService {
         if (cs.dimensions[themeSlug] !== null) continue;
         const regionMap = regionDimAvg.get(cs.region);
         const e = regionMap?.get(themeSlug);
-        cs.dimensions[themeSlug] = e && e.count > 0
+        const imputed = e && e.count > 0;
+        cs.dimensions[themeSlug] = imputed
           ? Math.round((e.sum / e.count) * 100) / 100
           : 50;
+        // Neither measured nor honest-by-default until now: both branches used
+        // to emit a plain number that read exactly like a real score.
+        cs.coverage[themeSlug] = {
+          source: imputed ? 'regional-average' : 'default',
+          indicators: 0,
+          of: SUB_WEIGHTS[themeSlug]?.length ?? 0,
+        };
       }
     }
 
@@ -200,7 +238,9 @@ export class YouthIndexCalculatorService {
         countryId: cs.countryId,
         year,
         overallScore: cs.overallScore,
-        dimensionScores: cs.dimensions as any,
+        // _meta rides inside the existing JSON column so provenance ships without
+        // a schema migration. Readers must skip keys starting with '_'.
+        dimensionScores: { ...cs.dimensions, _meta: { coverage: cs.coverage } } as any,
         rank,
         previousRank: prevRank,
         rankChange: prevRank !== null ? prevRank - rank : null,
