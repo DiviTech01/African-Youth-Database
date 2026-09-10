@@ -4,6 +4,7 @@ import { NewsletterAudience } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AiService } from '../insights/ai.service';
 import { AiContextService } from '../insights/ai-context.service';
+import { formatDimensionLabel, formatTierLabel, stripNonWinAnsi } from '../../common/utils/labels';
 import { NewsletterService } from '../newsletter/newsletter.service';
 import { ReportStoreService } from './report-store.service';
 import {
@@ -597,7 +598,7 @@ export class InsightReportsService {
         : null;
 
       const summary = score
-        ? `${countryName ?? 'This country'} scores ${score.overallScore.toFixed(1)} on the African Youth Index for ${useYear}, ranking #${score.rank} continentally in the ${score.tier} tier.`
+        ? `${countryName ?? 'This country'} scores ${score.overallScore.toFixed(1)} on the African Youth Index for ${useYear}, ranking #${score.rank} continentally in the ${formatTierLabel(score.tier)} tier.`
         : `No African Youth Index score is available for ${countryName ?? 'this country'}${useYear ? ` in ${useYear}` : ''}. This summary reports only what the database holds.`;
 
       if (score) {
@@ -606,7 +607,7 @@ export class InsightReportsService {
           blocks: [
             { type: 'stat', label: 'Overall score', value: score.overallScore.toFixed(1), context: `African Youth Index, ${useYear}` },
             { type: 'stat', label: 'Continental rank', value: `#${score.rank}`, context: 'Out of all scored countries' },
-            { type: 'stat', label: 'Tier', value: String(score.tier) },
+            { type: 'stat', label: 'Tier', value: formatTierLabel(score.tier) },
           ],
         });
         citations.push({
@@ -620,7 +621,7 @@ export class InsightReportsService {
             : {};
         const rows = Object.entries(dims)
           .filter(([, v]) => Number.isFinite(Number(v)))
-          .map(([k, v]) => [k, Number(Number(v).toFixed(1))] as (string | number)[]);
+          .map(([k, v]) => [formatDimensionLabel(k), Number(Number(v).toFixed(1))] as (string | number)[]);
         if (rows.length) {
           sections.push({
             heading: 'Dimension scores',
@@ -684,7 +685,9 @@ export class InsightReportsService {
             columns: ['Rank', 'Country', 'Score'],
             rows: top.map((t) => [
               t.rank,
-              `${t.country?.flagEmoji ?? ''} ${t.country?.name ?? 'Unknown'}`.trim(),
+              // No flagEmoji: the PDF renderer uses only WinAnsi-encoded Helvetica,
+              // so a regional-indicator pair prints as mojibake in every row.
+              stripNonWinAnsi(t.country?.name ?? 'Unknown'),
               Number(t.overallScore.toFixed(1)),
             ]),
             caption: `African Youth Index rankings, ${useYear}`,
